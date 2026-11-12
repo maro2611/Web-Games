@@ -175,3 +175,7 @@ input[type="text"], input[type="url"], input[type="date"], input[type="file"], t
 textarea { width: 100%; }
 .panel > input[type="url"], .panel > textarea { width: 100%; }
 .tools input[type="text"], .tools input[type="date"] { flex: 1 1 120px; }
+
+/* keep all content above the fixed background layer */
+main, .site-footer { position: relative; z-index: 1; }
+body::before { pointer-events: none; }
