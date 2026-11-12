@@ -1,14 +1,37 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // The owner is one Google account: signed in through Google, email verified.
     function isOwner() {
       return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
         && request.auth.token.email == 'marcelinofahmyatiia@gmail.com'
         && request.auth.token.email_verified == true;
     }
+
+    // Shape and size limits for a game document (matches what the dashboard writes).
+    function validGame() {
+      let d = request.resource.data;
+      return d.title is string && d.title.size() > 0 && d.title.size() <= 120
+        && d.desc is string && d.desc.size() <= 5000
+        && d.hidden is bool
+        && d.versions is list && d.versions.size() > 0 && d.versions.size() <= 200
+        && d.screenshots is list && d.screenshots.size() <= 12;
+    }
+
     match /games/{gameId} {
+      // Visitors only see published games. Hidden drafts are readable by the owner only.
       allow read: if resource.data.hidden == false || isOwner();
-      allow create, update, delete: if isOwner();
+      allow create, update: if isOwner()
+        && gameId.matches('^[a-z0-9-]+$') && gameId.size() <= 80
+        && validGame();
+      allow delete: if isOwner();
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
