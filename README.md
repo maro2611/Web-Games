@@ -18,3 +18,15 @@ Settings ثم Pages ثم Source: **GitHub Actions**.
 
 ## إعدادات الموقع
 `data/site.json`: النص التعريفي، رقم واتساب، الإعلان العلوي، وبيانات "ادعمني".
+
+## لوحة التحكم (دخول جوجل، إضافة وتعديل وحذف)
+اللوحة على `admin.html` (من زرار "لوحة التحكم" في الإعدادات). بتشتغل بـ Firebase المجاني:
+
+1. console.firebase.google.com ثم Add project.
+2. Build ثم Authentication ثم Get started ثم Sign-in method ثم Google ثم Enable.
+3. Authentication ثم Settings ثم Authorized domains ثم Add domain: `maro2611.github.io`.
+4. Build ثم Firestore Database ثم Create database (Production mode). من تبويب Rules الصق محتوى ملف `firestore.rules` واضغط Publish.
+5. Project settings (الترس) ثم Your apps ثم Web (`</>`) ثم Register. انسخ `firebaseConfig` وحطه في `data/firebase-config.js`.
+
+الصور بتترفع من اللوحة وبتتصغّر تلقائيًا. ملفات الـ APK بتترفع في GitHub Releases وبتحط رابطها في خانة الإصدار.
+بعد ربط Firebase الموقع بيقرأ الألعاب من Firestore، وملف `data/games.json` بيفضل احتياطي لو Firebase مش متاح.

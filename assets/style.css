@@ -166,3 +166,12 @@ details ol { margin: 10px 0 0; padding-inline-start: 22px; display: grid; gap: 6
 
 .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
 @media (max-width: 420px) { .nav a { padding: 6px 8px; } .logo { font-size: 1.05rem; } }
+
+/* form controls (admin) */
+input[type="text"], input[type="url"], input[type="date"], input[type="file"], textarea, select {
+  min-height: 44px; padding: 8px 14px; background: var(--surface); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 8px; font: inherit; min-width: 0; max-width: 100%;
+}
+textarea { width: 100%; }
+.panel > input[type="url"], .panel > textarea { width: 100%; }
+.tools input[type="text"], .tools input[type="date"] { flex: 1 1 120px; }

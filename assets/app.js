@@ -384,21 +384,50 @@
     main.appendChild(h("h1", { text: "الإعدادات" }));
     main.appendChild(h("section", { class: "panel" }, [
       h("h3", { text: "لوحة التحكم" }),
-      h("p", { class: "muted", text: "اضغط الزرار وسجّل دخول بحساب GitHub بتاعك. لو الحساب هو صاحب الموقع هيفتح لك ملف الألعاب تعدله، ولو مش هو هيرفض الدخول. تقدر تضيف لعبة أو إصدار جديد أو تغيّر الوصف والصور." }),
-      h("div", { class: "actions" }, [h("a", { class: "btn", href: SITE.adminUrl, target: "_blank", rel: "noopener", text: "لوحة التحكم" })])
+      h("p", { class: "muted", text: "سجّل دخول بحساب جوجل بتاعك. لو الحساب هو صاحب الموقع هتقدر تضيف وتعدّل وتحذف الألعاب وتغيّر الصور، ولو مش هو هيتم رفض الدخول." }),
+      h("div", { class: "actions" }, [h("a", { class: "btn", href: "admin.html", text: "لوحة التحكم" })])
     ]));
   }
 
-  /* ---------- boot ---------- */
+  /* ---------- data: Firestore when configured, else data/games.json ---------- */
   function load(url) { return fetch(url, { cache: "no-cache" }).then(function (r) { return r.json(); }); }
+  function fbReady() { var c = window.FIREBASE_CONFIG; return !!(c && c.apiKey && c.apiKey.indexOf("PUT_") !== 0); }
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement("script");
+      s.src = src; s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+  function loadFirebase(parts) {
+    var base = "https://www.gstatic.com/firebasejs/10.12.2/firebase-";
+    var seq = Promise.resolve();
+    ["app"].concat(parts).forEach(function (p) { seq = seq.then(function () { return loadScript(base + p + "-compat.js"); }); });
+    return seq.then(function () {
+      if (!window.firebase.apps.length) window.firebase.initializeApp(window.FIREBASE_CONFIG);
+      return window.firebase;
+    });
+  }
+  function loadGames() {
+    if (!fbReady()) return load("data/games.json");
+    return loadFirebase(["firestore"]).then(function (fb) {
+      return fb.firestore().collection("games").where("hidden", "==", false).get();
+    }).then(function (snap) {
+      return snap.docs.map(function (d) { var o = d.data(); o.slug = d.id; return o; });
+    }).catch(function () { return load("data/games.json"); });
+  }
+  window.MG = { h: h, $: $, ltr: ltr, fmtDate: fmtDate, fbReady: fbReady, loadFirebase: loadFirebase };
+
+  /* ---------- boot ---------- */
   var page = document.body.getAttribute("data-page");
-  Promise.all([load("data/site.json"), load("data/games.json")]).then(function (res) {
+  Promise.all([load("data/site.json"), loadGames()]).then(function (res) {
     SITE = res[0]; GAMES = res[1];
     renderChrome(page);
     if (page === "home") pageHome();
     else if (page === "games") pageGames();
     else if (page === "game") pageGame();
     else if (page === "settings") pageSettings();
+    else if (page === "admin" && window.MG_ADMIN) window.MG_ADMIN(window.MG);
   }).catch(function () {
     document.body.appendChild(h("p", { class: "empty", text: "حصلت مشكلة في تحميل الصفحة. جرّب تحدّث." }));
   });

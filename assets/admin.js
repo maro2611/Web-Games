@@ -1,0 +1,267 @@
+/* Owner dashboard: Google sign-in, add / edit / hide / delete games, upload images (stored resized in Firestore). */
+window.MG_ADMIN = function (MG) {
+  "use strict";
+  var h = MG.h, $ = MG.$;
+  var OWNER = String(window.OWNER_EMAIL || "").toLowerCase();
+  var root = $("main .wrap");
+  var box = h("div", { class: "stack" });
+  root.appendChild(h("h1", { text: "لوحة التحكم" }));
+  root.appendChild(box);
+
+  if (!MG.fbReady()) {
+    box.appendChild(h("div", { class: "panel" }, [
+      h("h3", { text: "لسه مش متربطة" }),
+      h("p", { class: "muted", text: "لوحة التحكم محتاجة مشروع Firebase. حط بياناته في ملف data/firebase-config.js وبعدها هيشتغل تسجيل الدخول بجوجل." })
+    ]));
+    return;
+  }
+
+  function today() { return new Date().toISOString().slice(0, 10); }
+  function field(label, el, id) {
+    if (id) el.id = id;
+    return h("div", { class: "field" }, [h("label", { for: id || false, text: label }), el]);
+  }
+  function resize(file, max, q) {
+    return new Promise(function (res, rej) {
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function () {
+        var r = Math.min(1, max / Math.max(img.width, img.height));
+        var c = document.createElement("canvas");
+        c.width = Math.round(img.width * r);
+        c.height = Math.round(img.height * r);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        res(c.toDataURL("image/jpeg", q));
+      };
+      img.onerror = function () { rej(new Error("bad image")); };
+      img.src = url;
+    });
+  }
+
+  MG.loadFirebase(["auth", "firestore"]).then(function (fb) {
+    var auth = fb.auth();
+    var db = fb.firestore();
+    auth.onAuthStateChanged(function (u) { render(u); });
+
+    function render(u) {
+      box.textContent = "";
+      if (!u) return signIn();
+      var ok = (u.email || "").toLowerCase() === OWNER && u.emailVerified;
+      if (!ok) return denied(u);
+      dashboard(u);
+    }
+
+    function signIn() {
+      var note = h("p", { class: "note", hidden: "hidden" });
+      var btn = h("button", { class: "btn", type: "button", text: "تسجيل الدخول بحساب جوجل" });
+      btn.addEventListener("click", function () {
+        auth.signInWithPopup(new fb.auth.GoogleAuthProvider()).catch(function (e) {
+          note.hidden = false;
+          note.textContent = e && e.code === "auth/unauthorized-domain"
+            ? "الدومين ده مش متضاف في Firebase (Authentication ثم Settings ثم Authorized domains)."
+            : "ماتمش تسجيل الدخول. جرّب تاني.";
+        });
+      });
+      box.appendChild(h("div", { class: "panel" }, [
+        h("h3", { text: "دخول صاحب الموقع" }),
+        h("p", { class: "muted", text: "سجّل دخول بحساب جوجل بتاع صاحب الموقع." }),
+        btn, note
+      ]));
+    }
+
+    function denied(u) {
+      box.appendChild(h("div", { class: "panel" }, [
+        h("h3", { text: "مفيش صلاحية" }),
+        h("p", { class: "muted", text: "الحساب ده (" + u.email + ") مش صاحب الموقع." }),
+        h("button", { class: "btn secondary", type: "button", text: "تسجيل الخروج", onclick: function () { auth.signOut(); } })
+      ]));
+    }
+
+    function dashboard(u) {
+      var games = [];
+      var msg = h("p", { class: "note", hidden: "hidden", role: "status" });
+      var list = h("div", { class: "stack" });
+      var formBox = h("div");
+
+      function say(t) { msg.hidden = false; msg.textContent = t; }
+
+      box.appendChild(h("div", { class: "tools" }, [
+        h("span", { class: "muted", text: u.email }),
+        h("button", { class: "btn secondary", type: "button", text: "تسجيل الخروج", onclick: function () { auth.signOut(); } })
+      ]));
+      box.appendChild(h("div", { class: "actions" }, [
+        h("button", { class: "btn", type: "button", text: "إضافة لعبة", onclick: function () { openForm(null, false); } })
+      ]));
+      box.appendChild(msg);
+      box.appendChild(formBox);
+      box.appendChild(h("h2", { text: "الألعاب" }));
+      box.appendChild(list);
+
+      function refresh() {
+        return db.collection("games").get().then(function (snap) {
+          games = snap.docs.map(function (d) { var o = d.data(); o.slug = d.id; return o; })
+            .sort(function (a, b) { return String(b.added).localeCompare(String(a.added)); });
+          draw();
+        }).catch(function () { say("ماقدرتش أحمّل الألعاب. اتأكد من قواعد Firestore."); });
+      }
+
+      function draw() {
+        list.textContent = "";
+        if (!games.length) list.appendChild(h("p", { class: "empty", text: "مفيش ألعاب لسه. اضغط إضافة لعبة." }));
+        games.forEach(function (g) {
+          var v = (g.versions && g.versions[0]) || {};
+          var actions = h("div", { class: "actions" });
+          var del = h("button", { class: "btn secondary", type: "button", text: "حذف" });
+          del.addEventListener("click", function () {
+            actions.textContent = "";
+            actions.appendChild(h("span", { class: "muted", text: "تأكيد حذف " + g.title + "؟" }));
+            actions.appendChild(h("button", { class: "btn", type: "button", text: "أيوه احذف", onclick: function () {
+              db.collection("games").doc(g.slug).delete().then(function () { say("اتحذفت."); refresh(); }, function () { say("ماتحذفتش."); });
+            } }));
+            actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "إلغاء", onclick: draw }));
+          });
+          actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "تعديل", onclick: function () { openForm(g, false); } }));
+          actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "إصدار جديد", onclick: function () { openForm(g, true); } }));
+          actions.appendChild(h("button", { class: "btn secondary", type: "button", text: g.hidden ? "إظهار" : "إخفاء", onclick: function () {
+            db.collection("games").doc(g.slug).update({ hidden: !g.hidden }).then(function () { say(g.hidden ? "اتظهرت." : "اتخفت."); refresh(); }, function () { say("ماتحدّثتش."); });
+          } }));
+          actions.appendChild(del);
+          list.appendChild(h("div", { class: "panel" }, [
+            h("h3", { text: g.title }),
+            h("p", { class: "muted" }, [g.platform + " · إصدار ", h("span", { class: "ltr", text: v.version || "-" }), g.hidden ? " · مخفية (مسودة)" : " · منشورة"]),
+            actions
+          ]));
+        });
+      }
+
+      function openForm(g, newVersion) {
+        var isEdit = !!g;
+        var st = {
+          wallpaper: (g && g.wallpaper) || "",
+          shots: ((g && g.screenshots) || []).slice(),
+          versions: ((g && g.versions) || [{ version: "1.0", date: today(), size: "", changelog: "", url: "" }]).map(function (x) { return Object.assign({}, x); })
+        };
+        if (newVersion) st.versions.unshift({ version: "", date: today(), size: "", changelog: "", url: "" });
+
+        var title = h("input", { type: "text", value: g ? g.title : "" });
+        var slug = h("input", { type: "text", value: g ? g.slug : "", dir: "ltr", placeholder: "my-game" });
+        if (isEdit) slug.setAttribute("disabled", "disabled");
+        var desc = h("textarea", { rows: "4" }); desc.value = g ? g.desc : "";
+        var platform = h("select", null, [h("option", { value: "Android", text: "Android" }), h("option", { value: "Windows", text: "Windows" })]);
+        platform.value = g ? g.platform : "Android";
+        var minA = h("input", { type: "text", value: g ? (g.minAndroid || "") : "8.0", dir: "ltr" });
+        var ram = h("input", { type: "text", value: g ? (g.ram || "") : "2 GB", dir: "ltr" });
+
+        var wallPrev = h("div");
+        var wallIn = h("input", { type: "file", accept: "image/*" });
+        function drawWall() {
+          wallPrev.textContent = "";
+          if (st.wallpaper) {
+            wallPrev.appendChild(h("img", { src: st.wallpaper, alt: "", style: "max-width:260px;border-radius:8px;border:1px solid var(--line)" }));
+            wallPrev.appendChild(h("button", { class: "btn secondary", type: "button", text: "حذف الصورة", onclick: function () { st.wallpaper = ""; drawWall(); } }));
+          }
+        }
+        wallIn.addEventListener("change", function () {
+          if (wallIn.files[0]) resize(wallIn.files[0], 1100, 0.8).then(function (d) { st.wallpaper = d; drawWall(); }, function () { say("الصورة دي مش مقبولة."); });
+        });
+        drawWall();
+
+        var shotsPrev = h("div", { class: "shots" });
+        var shotsIn = h("input", { type: "file", accept: "image/*", multiple: "multiple" });
+        function drawShots() {
+          shotsPrev.textContent = "";
+          st.shots.forEach(function (s, i) {
+            shotsPrev.appendChild(h("div", { class: "stack", style: "flex:none" }, [
+              h("img", { src: s, alt: "", style: "height:120px;width:auto;border-radius:8px;border:1px solid var(--line)" }),
+              h("button", { class: "btn secondary", type: "button", text: "حذف", onclick: function () { st.shots.splice(i, 1); drawShots(); } })
+            ]));
+          });
+        }
+        shotsIn.addEventListener("change", function () {
+          var files = Array.prototype.slice.call(shotsIn.files).slice(0, Math.max(0, 4 - st.shots.length));
+          Promise.all(files.map(function (f) { return resize(f, 720, 0.72); })).then(function (arr) {
+            st.shots = st.shots.concat(arr); drawShots(); shotsIn.value = "";
+          }, function () { say("واحدة من الصور مش مقبولة."); });
+        });
+        drawShots();
+
+        var versBox = h("div", { class: "stack" });
+        function drawVers() {
+          versBox.textContent = "";
+          st.versions.forEach(function (x, i) {
+            function bind(key, ph, type) {
+              var inp = h("input", { type: type || "text", value: x[key] || "", placeholder: ph, dir: "ltr" });
+              inp.addEventListener("input", function () { x[key] = inp.value; });
+              return inp;
+            }
+            var ch = h("textarea", { rows: "2", placeholder: "إيه اللي اتغير" }); ch.value = x.changelog || "";
+            ch.addEventListener("input", function () { x.changelog = ch.value; });
+            versBox.appendChild(h("div", { class: "panel" }, [
+              h("div", { class: "tools" }, [bind("version", "رقم الإصدار 1.0"), bind("date", "", "date"), bind("size", "الحجم 45 MB")]),
+              bind("url", "رابط التحميل المباشر (GitHub Releases)", "url"),
+              ch,
+              st.versions.length > 1 ? h("button", { class: "btn secondary", type: "button", text: "حذف الإصدار ده", onclick: function () { st.versions.splice(i, 1); drawVers(); } }) : null
+            ]));
+          });
+        }
+        drawVers();
+
+        function save(hidden) {
+          var t = title.value.trim();
+          var s = slug.value.trim().toLowerCase();
+          if (!t || !desc.value.trim()) return say("اكتب اسم اللعبة والوصف.");
+          if (!isEdit && !s) s = "game-" + Date.now().toString(36);
+          if (!/^[a-z0-9-]+$/.test(s)) return say("الرابط (slug) حروف إنجليزي صغيرة وأرقام وشرطة بس.");
+          if (!isEdit && games.some(function (x) { return x.slug === s; })) return say("في لعبة بنفس الـ slug.");
+          var vers = st.versions.filter(function (x) { return (x.version || "").trim(); }).map(function (x) {
+            return { version: x.version.trim(), date: x.date || today(), size: (x.size || "").trim(), changelog: (x.changelog || "").trim(), url: (x.url || "").trim() };
+          });
+          if (!vers.length) return say("لازم إصدار واحد على الأقل برقمه.");
+          var doc = {
+            title: t, desc: desc.value.trim(), platform: platform.value,
+            wallpaper: st.wallpaper, screenshots: st.shots,
+            minAndroid: minA.value.trim(), ram: ram.value.trim(),
+            hue: g && g.hue ? g.hue : Math.floor(Math.random() * 360),
+            added: g && g.added ? g.added : today(),
+            hidden: !!hidden, versions: vers
+          };
+          if (JSON.stringify(doc).length > 950000) return say("الصور كبيرة أوي. قلّل عدد اللقطات أو شيل صورة.");
+          db.collection("games").doc(s).set(doc).then(function () {
+            say(hidden ? "اتحفظت كمسودة." : "اتنشرت.");
+            formBox.textContent = "";
+            refresh();
+          }, function () { say("ماتحفظتش. اتأكد من قواعد Firestore وإنك داخل بحساب صاحب الموقع."); });
+        }
+
+        formBox.textContent = "";
+        formBox.appendChild(h("div", { class: "panel" }, [
+          h("h2", { text: isEdit ? "تعديل: " + g.title : "لعبة جديدة" }),
+          field("اسم اللعبة", title, "f-title"),
+          field("الرابط (slug)", slug, "f-slug"),
+          field("الوصف", desc, "f-desc"),
+          field("المنصة", platform, "f-platform"),
+          field("أقل إصدار أندرويد", minA, "f-min"),
+          field("الرام المناسب", ram, "f-ram"),
+          h("div", { class: "field" }, [h("label", { text: "صورة اللعبة (الوول بيبر)" }), wallIn, wallPrev]),
+          h("div", { class: "field" }, [h("label", { text: "لقطات من اللعبة (لحد 4)" }), shotsIn, shotsPrev]),
+          h("h3", { text: "الإصدارات (الأحدث الأول)" }),
+          versBox,
+          h("button", { class: "btn secondary", type: "button", text: "إضافة إصدار", onclick: function () {
+            st.versions.unshift({ version: "", date: today(), size: "", changelog: "", url: "" }); drawVers();
+          } }),
+          h("div", { class: "actions" }, [
+            h("button", { class: "btn", type: "button", text: "نشر", onclick: function () { save(false); } }),
+            h("button", { class: "btn secondary", type: "button", text: "حفظ كمسودة", onclick: function () { save(true); } }),
+            h("button", { class: "btn secondary", type: "button", text: "إلغاء", onclick: function () { formBox.textContent = ""; } })
+          ])
+        ]));
+        formBox.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      refresh();
+    }
+  }).catch(function () {
+    box.appendChild(h("p", { class: "empty", text: "ماقدرتش أحمّل Firebase. جرّب تحدّث الصفحة." }));
+  });
+};
