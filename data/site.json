@@ -1,0 +1,15 @@
+{
+  "name": "Marcelino Games",
+  "tagline": "ألعاب أندرويد بتتحمل مباشرة وببلاش",
+  "about": "أنا مارسيلينو فهمي، مطوّر ألعاب مستقل. بصمم وببني الألعاب دي بنفسي، وبرفع كل إصدار جديد هنا الأول عشان تنزّله مباشرة من غير حسابات ولا خطوات زيادة.",
+  "whatsapp": "201121503222",
+  "phone": "01121503222",
+  "announcement": { "on": false, "text": "" },
+  "support": {
+    "on": true,
+    "link": "",
+    "wallet": "",
+    "qrImage": ""
+  },
+  "adminUrl": "https://github.com/maro2611/web-games/edit/main/data/games.json"
+}

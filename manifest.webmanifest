@@ -1,0 +1,11 @@
+{
+  "name": "Marcelino Games",
+  "short_name": "Marcelino",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0d17",
+  "theme_color": "#0b0d17",
+  "lang": "ar",
+  "dir": "rtl"
+}

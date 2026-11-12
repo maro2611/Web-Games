@@ -1,0 +1,25 @@
+[
+  {
+    "slug": "example-game",
+    "example": true,
+    "title": "لعبة تجريبية",
+    "desc": "ده مثال بس عشان تشوف شكل الصفحة. امسح الكتلة دي وحط ألعابك الحقيقية مكانها.",
+    "platform": "Android",
+    "wallpaper": "",
+    "screenshots": [],
+    "minAndroid": "8.0",
+    "ram": "2 GB",
+    "added": "2026-11-12",
+    "hidden": false,
+    "hue": 190,
+    "versions": [
+      {
+        "version": "1.0",
+        "date": "2026-11-12",
+        "size": "45 MB",
+        "changelog": "أول إصدار.",
+        "url": ""
+      }
+    ]
+  }
+]
