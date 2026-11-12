@@ -414,29 +414,79 @@
       p.then(function (v) { clearTimeout(t); res(v); }, function (e) { clearTimeout(t); rej(e); });
     });
   }
-  function loadGames() {
-    if (!fbReady()) return load("data/games.json");
+  /* Firestore only. Rejects when Firebase isn't configured or doesn't answer in time. */
+  function remoteGames() {
+    if (!fbReady()) return Promise.reject(new Error("no firebase"));
     var remote = loadFirebase(["firestore"]).then(function (fb) {
       return fb.firestore().collection("games").where("hidden", "==", false).get();
     }).then(function (snap) {
       return snap.docs.map(function (d) { var o = d.data(); o.slug = d.id; return o; });
     });
-    return withTimeout(remote, 4000).catch(function () { return load("data/games.json"); });
+    return withTimeout(remote, 8000);
   }
   window.MG = { h: h, $: $, ltr: ltr, fmtDate: fmtDate, fbReady: fbReady, loadFirebase: loadFirebase };
 
   /* ---------- boot ---------- */
+  /* The page paints at once, never waits for Firebase:
+     1) from the copy saved on this device at the last visit (no network, instant), or
+        from the static data/*.json files on the very first visit;
+     2) then Firestore is asked in the background, and the page is redrawn
+        only if its data differs from what is already on screen. */
   var page = document.body.getAttribute("data-page");
-  Promise.all([load("data/site.json"), loadGames()]).then(function (res) {
-    SITE = res[0]; GAMES = res[1];
-    var ld = document.getElementById("loading"); if (ld) ld.remove();
+  var CACHE_KEY = "mg-data-v1";
+  var shown = null;
+
+  function readCache() {
+    try {
+      var c = JSON.parse(localStorage.getItem(CACHE_KEY));
+      return c && c.site && Array.isArray(c.games) ? c : null;
+    } catch (e) { return null; }
+  }
+  function writeCache(site, games) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ site: site, games: games })); } catch (e) {}
+  }
+  /* a game page opened for a game this data doesn't know yet must wait for fresh data */
+  function canPaintEarly(games) {
+    if (page !== "game") return true;
+    var slug = new URLSearchParams(location.search).get("g");
+    return games.some(function (x) { return x.slug === slug && !x.hidden; });
+  }
+  function clearPage() {
+    Array.prototype.forEach.call(document.querySelectorAll(".banner, .site-header, .site-footer, .wa-float"), function (n) { n.remove(); });
+    var w = $("main .wrap") || $("main");
+    if (w) w.textContent = "";
+  }
+  function paint(site, games) {
+    var key = JSON.stringify([site, games]);
+    if (key === shown) return;
+    var repaint = shown !== null;
+    shown = key; SITE = site; GAMES = games;
+    if (repaint) {
+      if (page === "admin") return;
+      clearPage();
+    }
+    var y = window.pageYOffset;
     renderChrome(page);
     if (page === "home") pageHome();
     else if (page === "games") pageGames();
     else if (page === "game") pageGame();
     else if (page === "settings") pageSettings();
     else if (page === "admin" && window.MG_ADMIN) window.MG_ADMIN(window.MG);
-  }).catch(function () {
-    document.body.appendChild(h("p", { class: "empty", text: "حصلت مشكلة في تحميل الصفحة. جرّب تحدّث." }));
-  });
+    if (repaint && y) window.scrollTo(0, y);
+  }
+  function start() {
+    var cached = readCache();
+    if (cached && canPaintEarly(cached.games)) paint(cached.site, cached.games);
+    Promise.all([load("data/site.json"), load("data/games.json")]).then(function (st) {
+      if (!cached && canPaintEarly(st[1])) paint(st[0], st[1]);
+      return remoteGames().then(function (games) { return [st[0], games]; }, function () { return st; });
+    }).then(function (res) {
+      paint(res[0], res[1]);
+      writeCache(res[0], res[1]);
+    }).catch(function () {
+      if (shown === null) document.body.appendChild(h("p", { class: "empty", text: "حصلت مشكلة في تحميل الصفحة. جرّب تحدّث." }));
+    });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
 })();
