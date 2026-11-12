@@ -57,10 +57,18 @@ window.MG_ADMIN = function (MG) {
       var btn = h("button", { class: "btn", type: "button", text: "تسجيل الدخول بحساب جوجل" });
       btn.addEventListener("click", function () {
         auth.signInWithPopup(new fb.auth.GoogleAuthProvider()).catch(function (e) {
+          var code = (e && e.code) || "unknown";
+          var why = {
+            "auth/unauthorized-domain": "الدومين مش متضاف في Firebase: Authentication ثم Settings ثم Authorized domains، وضيف maro2611.github.io",
+            "auth/operation-not-allowed": "تسجيل الدخول بجوجل مش متفعّل: Authentication ثم Sign-in method ثم Google ثم Enable",
+            "auth/popup-blocked": "المتصفح قفل النافذة المنبثقة. اسمح بالـ popups للموقع وجرّب تاني",
+            "auth/popup-closed-by-user": "النافذة اتقفلت قبل ما تخلّص الدخول",
+            "auth/cancelled-popup-request": "النافذة اتقفلت قبل ما تخلّص الدخول",
+            "auth/network-request-failed": "مشكلة في الإنترنت. جرّب تاني",
+            "auth/invalid-api-key": "مفتاح Firebase غلط في ملف data/firebase-config.js"
+          }[code] || "ماتمش تسجيل الدخول. جرّب تاني.";
           note.hidden = false;
-          note.textContent = e && e.code === "auth/unauthorized-domain"
-            ? "الدومين ده مش متضاف في Firebase (Authentication ثم Settings ثم Authorized domains)."
-            : "ماتمش تسجيل الدخول. جرّب تاني.";
+          note.textContent = why + " (" + code + ")";
         });
       });
       box.appendChild(h("div", { class: "panel" }, [
