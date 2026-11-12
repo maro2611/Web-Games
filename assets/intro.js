@@ -16,7 +16,7 @@
   var letters = [], plan = null, segs = [], arm = null, geo = null;
 
   /* ---- timeline (seconds) ---- */
-  var T = { mIn0: 0.3, mIn1: 3.0, click: 3.55, reveal0: 3.6, reveal1: 6.4, fall0: 5.9, armIn: 7.0, endFade: 12 };
+  var T = { mIn0: 0.4, mIn1: 4.4, handIn: 5.0, handPre: 6.9, click: 7.9, away0: 8.6, away1: 9.8, reveal0: 8.0, reveal1: 12.6, fall0: 11.0, armIn: 14.0, endFade: 30 };
 
   function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
   function lerp(a, b, u) { return a + (b - a) * u; }
@@ -91,7 +91,7 @@
   function pickRadius() { return Math.max(70 * S * 2.4, 90); }
 
   /* ---- measure slots, build jumbled pile, hand path ---- */
-  var LAND = 0.9;
+  var LAND = 1.25;
   function measure() {
     measured = true;
     letters.forEach(function (L) {
@@ -118,20 +118,20 @@
     });
     // spread overlapping neighbours a little so the pile does not stack on one spot
     // arm geometry
-    var sx = Math.min(W + 40, cx + 380), sy = H + 50;
+    var sx = -60, sy = H + 30;
     var far = 0;
     letters.forEach(function (L) {
       far = Math.max(far, Math.hypot(L.jx - sx, L.jy - sy), Math.hypot(L.cx - sx, L.cy - sy));
     });
     far = Math.max(far, Math.hypot(geo.mx - sx, geo.my - sy) + 40);
-    var lift = { x: Math.min(W - 60, maxX + 70 * Math.max(.8, far / 470)), y: Math.max(40, minY - H * 0.26) };
+    var lift = { x: Math.max(60, minX - 70 * Math.max(.8, far / 470)), y: Math.max(40, minY - H * 0.26) };
     var hit = { x: lift.x, y: floor - 8 };
     far = Math.max(far, Math.hypot(lift.x - sx, lift.y - sy));
     var L1 = far * 0.62;
     var u = clamp(far / 330, 1.1, 2.1) * 1.5;
     plan = {
       sx: sx, sy: sy, L1: L1, L2: L1, u: u, cx: cx, bw: bw, floor: floor, lift: lift, hit: hit,
-      hidden: { x: sx + 1.9 * L1 * 0.98, y: sy - 40 }
+      hidden: { x: sx - 1.9 * L1 * 0.98, y: sy - 40 }
     };
     // hand path
     segs = [];
@@ -140,26 +140,26 @@
     var ang0 = Math.atan2(geo.my - plan.sy, geo.mx - plan.sx);
     plan.press = { x: geo.mx - Math.cos(ang0) * tipR, y: geo.my + 4 * S - Math.sin(ang0) * tipR };
     plan.pre = { x: plan.press.x - Math.cos(ang0) * 90 * uu, y: plan.press.y - Math.sin(ang0) * 90 * uu - 12 * uu };
-    segs.push({ t0: 2.2, t1: 3.2, a: plan.hidden, b: plan.pre, c0: 0, c1: 0, e: eio, kind: "in", pose: "point" });
-    segs.push({ t0: 3.2, t1: 3.55, a: plan.pre, b: plan.press, c0: 0, c1: 0, e: eio, kind: "press", pose: "point" });
-    segs.push({ t0: 3.55, t1: 3.8, a: plan.press, b: plan.press, c0: 0, c1: 0, e: eio, kind: "tap", pose: "point" });
-    segs.push({ t0: 3.8, t1: 4.7, a: plan.press, b: plan.hidden, c0: 0, c1: .3, e: eio, kind: "away", pose: "point" });
+    segs.push({ t0: T.handIn, t1: T.handPre, a: plan.hidden, b: plan.pre, c0: 0, c1: 0, e: eio, kind: "in", pose: "point" });
+    segs.push({ t0: T.handPre, t1: T.click, a: plan.pre, b: plan.press, c0: 0, c1: 0, e: eio, kind: "press", pose: "point" });
+    segs.push({ t0: T.click, t1: T.away0, a: plan.press, b: plan.press, c0: 0, c1: 0, e: eio, kind: "tap", pose: "point" });
+    segs.push({ t0: T.away0, t1: T.away1, a: plan.press, b: plan.hidden, c0: 0, c1: .3, e: eio, kind: "away", pose: "point" });
     var t = T.armIn, prev = plan.hidden, cPrev = .9;
     letters.forEach(function (L, i) {
-      var A = i === 0 ? 0.5 : 0.075, B = 0.115;
+      var A = i === 0 ? 1.0 : 0.17, B = 0.26;
       var J = { x: L.jx, y: L.jy }, Sl = { x: L.cx, y: L.cy };
       segs.push({ t0: t, t1: t + A, a: prev, b: J, c0: cPrev, c1: .1, e: i === 0 ? eio : eout, kind: "reach", i: i });
       L.grab = t + A; L.place = t + A + B;
       segs.push({ t0: t + A, t1: t + A + B, a: J, b: Sl, c0: .1, c1: .85, e: eio, kind: "carry", i: i });
       prev = Sl; cPrev = .85; t += A + B;
     });
-    plan.tLift = t; plan.tHit = t + 0.32; plan.tImp = plan.tHit + 0.12;
+    plan.tLift = t; plan.tHit = t + 0.9; plan.tImp = plan.tHit + 0.2;
     segs.push({ t0: t, t1: plan.tHit, a: prev, b: plan.lift, c0: .85, c1: 1, e: eio, kind: "lift" });
     segs.push({ t0: plan.tHit, t1: plan.tImp, a: plan.lift, b: plan.hit, c0: 1, c1: 1, e: ein, kind: "slam" });
-    segs.push({ t0: plan.tImp, t1: plan.tImp + 0.28, a: plan.hit, b: plan.hit, c0: 1, c1: 1, e: eout, kind: "hold" });
-    segs.push({ t0: plan.tImp + 0.28, t1: plan.tImp + 0.95, a: plan.hit, b: plan.hidden, c0: .5, c1: .2, e: eio, kind: "leave" });
-    plan.tLev = plan.tImp + 0.25;
-    T.endFade = plan.tImp + 1.55;
+    segs.push({ t0: plan.tImp, t1: plan.tImp + 0.7, a: plan.hit, b: plan.hit, c0: 1, c1: 1, e: eout, kind: "hold" });
+    segs.push({ t0: plan.tImp + 0.7, t1: plan.tImp + 2.0, a: plan.hit, b: plan.hidden, c0: .5, c1: .2, e: eio, kind: "leave" });
+    plan.tLev = plan.tImp + 0.35;
+    T.endFade = plan.tImp + 3.6;
     letters.forEach(function (L) { L.d = Math.hypot(L.cx - plan.hit.x, L.cy - plan.hit.y); });
     buildArm();
   }
@@ -200,7 +200,7 @@
     var a = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));
     var e1 = { x: sx + Math.cos(base + a) * L1, y: sy + Math.sin(base + a) * L1 };
     var e2 = { x: sx + Math.cos(base - a) * L1, y: sy + Math.sin(base - a) * L1 };
-    var e = e1.x > e2.x ? e1 : e2;                 // keep the elbow on the outer, right side
+    var e = e1.y < e2.y ? e1 : e2;                 // elbow arches upward
     var wx = sx + Math.cos(base) * d, wy = sy + Math.sin(base) * d;
     return { ex: e.x, ey: e.y, wx: wx, wy: wy };
   }
@@ -221,7 +221,7 @@
 
   function drawArm(h, t) {
     var A = arm, u = A.u;
-    if (!h || h.x > W + plan.L1 * 1.3) { A.g.setAttribute("opacity", 0); return; }
+    if (!h || h.x < plan.sx - plan.L1 * 1.2) { A.g.setAttribute("opacity", 0); return; }
     A.g.setAttribute("opacity", 1);
     var r = ik(h.x, h.y);
     var S = { x: plan.sx, y: plan.sy }, E = { x: r.ex, y: r.ey }, Wr = { x: r.wx, y: r.wy };
@@ -274,7 +274,7 @@
     shade.style.opacity = eio(u01(t, T.click + .6, T.reveal1)).toFixed(3);
 
     // click ripple + page flash
-    var fu = u01(t, T.click, T.click + .9);
+    var fu = u01(t, T.click, T.click + 1.5);
     if (fu > 0 && fu < 1) {
       var fr = lerp(20, Math.hypot(W, H) * .55, eout(fu));
       flash.style.opacity = (1 - fu).toFixed(3);
@@ -314,7 +314,7 @@
     });
 
     // --- levitation
-    var lv = u01(t, plan.tLev, plan.tLev + 0.6);
+    var lv = u01(t, plan.tLev, plan.tLev + 1.2);
     var lift = 20 * eback(lv);
     if (lv <= 0) lift = 0;
     A.shadow.setAttribute("opacity", (t > plan.tImp - .1 ? lerp(.55, .22, clamp(lift / 20, 0, 1)) * u01(t, plan.tImp - .1, plan.tImp + .1) : 0).toFixed(3));
