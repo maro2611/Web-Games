@@ -408,13 +408,20 @@
       return window.firebase;
     });
   }
+  function withTimeout(p, ms) {
+    return new Promise(function (res, rej) {
+      var t = setTimeout(function () { rej(new Error("timeout")); }, ms);
+      p.then(function (v) { clearTimeout(t); res(v); }, function (e) { clearTimeout(t); rej(e); });
+    });
+  }
   function loadGames() {
     if (!fbReady()) return load("data/games.json");
-    return loadFirebase(["firestore"]).then(function (fb) {
+    var remote = loadFirebase(["firestore"]).then(function (fb) {
       return fb.firestore().collection("games").where("hidden", "==", false).get();
     }).then(function (snap) {
       return snap.docs.map(function (d) { var o = d.data(); o.slug = d.id; return o; });
-    }).catch(function () { return load("data/games.json"); });
+    });
+    return withTimeout(remote, 4000).catch(function () { return load("data/games.json"); });
   }
   window.MG = { h: h, $: $, ltr: ltr, fmtDate: fmtDate, fbReady: fbReady, loadFirebase: loadFirebase };
 
@@ -422,6 +429,7 @@
   var page = document.body.getAttribute("data-page");
   Promise.all([load("data/site.json"), loadGames()]).then(function (res) {
     SITE = res[0]; GAMES = res[1];
+    var ld = document.getElementById("loading"); if (ld) ld.remove();
     renderChrome(page);
     if (page === "home") pageHome();
     else if (page === "games") pageGames();
