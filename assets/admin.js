@@ -42,15 +42,76 @@ window.MG_ADMIN = function (MG) {
   MG.loadFirebase(["auth", "firestore"]).then(function (fb) {
     var auth = fb.auth();
     var db = fb.firestore();
-    auth.onAuthStateChanged(function (u) { render(u); });
+
+    /* Extra password screen shown after the Google account is chosen.
+       Only a salted SHA-256 of the password is kept here, not the password itself.
+       This is a convenience gate: the real protection is the owner Google account + firestore.rules. */
+    var PW_HASH = "743a323b9bab591ad63c86900e3d3a3d0bf83a4a29fd6038b3cc104c45b4856a";
+    var memUnlocked = {};
+    function unlockKey(u) { return "mg-admin-unlocked:" + u.uid; }
+    function isUnlocked(u) {
+      try { if (sessionStorage.getItem(unlockKey(u)) === "1") return true; } catch (e) {}
+      return !!memUnlocked[u.uid];
+    }
+    function markUnlocked(u) {
+      memUnlocked[u.uid] = true;
+      try { sessionStorage.setItem(unlockKey(u), "1"); } catch (e) {}
+    }
+    function signOut() {
+      var u = auth.currentUser;
+      if (u) {
+        delete memUnlocked[u.uid];
+        try { sessionStorage.removeItem(unlockKey(u)); } catch (e) {}
+      }
+      auth.signOut();
+    }
+    function sha256(text) {
+      if (!window.crypto || !window.crypto.subtle) return Promise.reject(new Error("no crypto"));
+      return window.crypto.subtle.digest("SHA-256", new TextEncoder().encode("mg-admin:" + text)).then(function (buf) {
+        return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
+      });
+    }
 
     function render(u) {
       box.textContent = "";
       if (!u) return signIn();
       var ok = (u.email || "").toLowerCase() === OWNER && u.emailVerified;
       if (!ok) return denied(u);
+      if (!isUnlocked(u)) return askPassword(u);
       dashboard(u);
     }
+
+    function askPassword(u) {
+      var input = h("input", { type: "password", id: "admin-pw", autocomplete: "current-password" });
+      var note = h("p", { class: "note", hidden: "hidden", role: "alert" });
+      var form = h("form", { class: "panel" }, [
+        h("h3", { text: "ادخل الباسوورد" }),
+        h("p", { class: "muted", text: "الحساب: " + u.email + ". اكتب الباسوورد عشان تفتح لوحة التحكم." }),
+        h("div", { class: "field" }, [h("label", { for: "admin-pw", text: "الباسوورد" }), input]),
+        note,
+        h("div", { class: "actions" }, [
+          h("button", { class: "btn", type: "submit", text: "دخول" }),
+          h("button", { class: "btn secondary", type: "button", text: "تسجيل الخروج", onclick: signOut })
+        ])
+      ]);
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        sha256(input.value).then(function (hex) {
+          if (hex === PW_HASH) { markUnlocked(u); render(u); return; }
+          note.hidden = false;
+          note.textContent = "الباسوورد غلط. جرّب تاني.";
+          input.value = "";
+          input.focus();
+        }, function () {
+          note.hidden = false;
+          note.textContent = "المتصفح مش بيدعم التحقق من الباسوورد. جرّب متصفح تاني.";
+        });
+      });
+      box.appendChild(form);
+      input.focus();
+    }
+
+    auth.onAuthStateChanged(function (u) { render(u); });
 
     function signIn() {
       var note = h("p", { class: "note", hidden: "hidden" });
@@ -83,7 +144,7 @@ window.MG_ADMIN = function (MG) {
       box.appendChild(h("div", { class: "panel" }, [
         h("h3", { text: "مفيش صلاحية" }),
         h("p", { class: "muted", text: "الحساب ده (" + u.email + ") مش صاحب الموقع." }),
-        h("button", { class: "btn secondary", type: "button", text: "تسجيل الخروج", onclick: function () { auth.signOut(); } })
+        h("button", { class: "btn secondary", type: "button", text: "تسجيل الخروج", onclick: signOut })
       ]));
     }
 
@@ -97,7 +158,7 @@ window.MG_ADMIN = function (MG) {
 
       box.appendChild(h("div", { class: "tools" }, [
         h("span", { class: "muted", text: u.email }),
-        h("button", { class: "btn secondary", type: "button", text: "تسجيل الخروج", onclick: function () { auth.signOut(); } })
+        h("button", { class: "btn secondary", type: "button", text: "تسجيل الخروج", onclick: signOut })
       ]));
       box.appendChild(h("div", { class: "actions" }, [
         h("button", { class: "btn", type: "button", text: "إضافة لعبة", onclick: function () { openForm(null, false); } })
