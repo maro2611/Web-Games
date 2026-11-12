@@ -75,10 +75,19 @@
     }
   }
   function errText(e) {
-    var m = e && e.message;
-    if (m === "denied") return "الإشعارات مقفولة للموقع. فعّلها من إعدادات المتصفح (أيقونة القفل جنب الرابط) وجرّب تاني.";
-    if (m === "no-sw" || m === "no-token") return "الجهاز ده مش بيدعم الإشعارات من المتصفح.";
-    return "ماتفعّلتش الإشعارات. جرّب تاني بعد شوية.";
+    var m = (e && (e.code || e.message)) || "unknown";
+    var why = {
+      "denied": "الإشعارات مقفولة للموقع. فعّلها من إعدادات المتصفح (أيقونة القفل جنب الرابط) وجرّب تاني.",
+      "no-sw": "الجهاز ده مش بيدعم الإشعارات من المتصفح.",
+      "no-token": "ماقدرتش أجيب مفتاح الجهاز للإشعارات.",
+      "permission-denied": "قواعد Firestore مش بتسمح بالتسجيل. الصق firestore.rules الجديد في Firebase ثم Firestore ثم Rules ثم Publish.",
+      "messaging/token-subscribe-failed": "Firebase رفض تسجيل الجهاز. اتأكد إن Firebase Cloud Messaging API متفعّل للمشروع، وإن مفتاح Web Push مظبوط.",
+      "messaging/permission-blocked": "الإشعارات مقفولة للموقع من إعدادات المتصفح.",
+      "messaging/unsupported-browser": "المتصفح ده مش بيدعم الإشعارات.",
+      "messaging/failed-service-worker-registration": "ماقدرتش أشغّل خدمة الإشعارات. حدّث الصفحة بقوة وجرّب تاني.",
+      "installations/request-failed": "Firebase Installations API مش متفعّل أو مفتاح الـ API متقيّد. شوف Google Cloud Console ثم APIs."
+    }[m] || "ماتفعّلتش الإشعارات. جرّب تاني بعد شوية.";
+    return why + " (" + m + ")";
   }
 
   /* ---------- install ---------- */
