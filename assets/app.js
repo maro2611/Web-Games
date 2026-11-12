@@ -152,6 +152,7 @@
     var main = $("main .wrap") || $("main");
     var latest = visible().sort(byNewest)[0];
 
+    main.appendChild(h("img", { class: "hero-img", src: "images/banner.jpg", alt: "Marcelino Games" }));
     main.appendChild(h("section", { class: "hero" }, [
       h("h1", { html: 'Marcelino <span>Games</span>' }),
       h("p", { text: SITE.tagline }),
