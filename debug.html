@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>فحص الموقع</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main><div class="wrap">
+  <h1>فحص الموقع</h1>
+  <p>1) لو شايف السطر ده، الـ HTML شغال.</p>
+  <div class="panel"><h3>2) كارت</h3><p class="muted">لو شايف الكارت ده بشكله، ملف الـ CSS شغال.</p></div>
+  <div class="panel"><h3>3) نتايج الفحص</h3><ul id="out" style="padding-inline-start:18px;display:grid;gap:6px"><li>الـ JavaScript لسه ما اشتغلش.</li></ul></div>
+</div></main>
+<script src="data/firebase-config.js"></script>
+<script>
+(function () {
+  var out = document.getElementById("out");
+  out.textContent = "";
+  function log(t) { var li = document.createElement("li"); li.textContent = t; out.appendChild(li); }
+  log("JavaScript شغال.");
+  log("المتصفح: " + navigator.userAgent);
+  log("العرض: " + innerWidth + " x " + innerHeight);
+  fetch("data/site.json").then(function (r) { log("data/site.json: " + r.status); }, function (e) { log("data/site.json فشل: " + e); });
+  fetch("data/games.json").then(function (r) { log("data/games.json: " + r.status); }, function (e) { log("data/games.json فشل: " + e); });
+  var c = window.FIREBASE_CONFIG;
+  log("إعدادات Firebase: " + (c && c.projectId ? c.projectId : "مش موجودة"));
+  var s = document.createElement("script");
+  s.src = "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js";
+  s.onerror = function () { log("تحميل Firebase فشل (ممكن حاجب إعلانات أو إنترنت)."); };
+  s.onload = function () {
+    log("تحميل Firebase تمام.");
+    var s2 = document.createElement("script");
+    s2.src = "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js";
+    s2.onerror = function () { log("تحميل Firestore فشل."); };
+    s2.onload = function () {
+      try {
+        firebase.initializeApp(c);
+        var done = false;
+        setTimeout(function () { if (!done) log("Firestore ما ردش خلال 6 ثواني (غالبًا قاعدة البيانات لسه ما اتعملتش)."); }, 6000);
+        firebase.firestore().collection("games").where("hidden", "==", false).get().then(function (snap) {
+          done = true; log("Firestore رد: " + snap.size + " لعبة.");
+        }, function (e) { done = true; log("Firestore رفض: " + (e.code || e.message)); });
+      } catch (e) { log("خطأ: " + e.message); }
+    };
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>
