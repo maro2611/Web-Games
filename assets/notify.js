@@ -35,19 +35,30 @@
   }
 
   /* ---------- subscribe / unsubscribe ---------- */
-  function enable(MG, mode) {
+  function within(p, ms, code) {
+    return new Promise(function (res, rej) {
+      var t = setTimeout(function () { var e = new Error(code); e.code = code; rej(e); }, ms);
+      p.then(function (v) { clearTimeout(t); res(v); }, function (e) { clearTimeout(t); rej(e); });
+    });
+  }
+  function enable(MG, mode, onStep) {
+    function say(t) { if (onStep) onStep(t); }
+    say("1/4 طلب الإذن...");
     return Notification.requestPermission().then(function (perm) {
       if (perm !== "granted") throw new Error("denied");
-      return Promise.all([MG.loadFirebase(["firestore", "messaging"]), registerSW()]);
+      say("2/4 تحميل خدمة الإشعارات...");
+      return within(Promise.all([MG.loadFirebase(["firestore", "messaging"]), registerSW()]), 20000, "timeout-load");
     }).then(function (r) {
       var fb = r[0], reg = r[1];
       if (!reg) throw new Error("no-sw");
-      return navigator.serviceWorker.ready.then(function () {
-        return fb.messaging().getToken({ vapidKey: window.VAPID_KEY, serviceWorkerRegistration: reg });
+      say("3/4 تسجيل الجهاز...");
+      return within(navigator.serviceWorker.ready, 15000, "timeout-sw").then(function () {
+        return within(fb.messaging().getToken({ vapidKey: window.VAPID_KEY, serviceWorkerRegistration: reg }), 20000, "timeout-token");
       }).then(function (token) {
         if (!token) throw new Error("no-token");
+        say("4/4 حفظ اختيارك...");
         var doc = { mode: mode, games: lsJSON("mg_downloaded", []).slice(0, 50), updated: fb.firestore.FieldValue.serverTimestamp() };
-        return fb.firestore().collection("subscribers").doc(token).set(doc).then(function () {
+        return within(fb.firestore().collection("subscribers").doc(token).set(doc), 20000, "timeout-save").then(function () {
           lsSet("mg_push", JSON.stringify({ mode: mode, token: token }));
           return token;
         });
@@ -82,6 +93,10 @@
       "no-token": "ماقدرتش أجيب مفتاح الجهاز للإشعارات.",
       "permission-denied": "قواعد Firestore مش بتسمح بالتسجيل. الصق firestore.rules الجديد في Firebase ثم Firestore ثم Rules ثم Publish.",
       "messaging/token-subscribe-failed": "Firebase رفض تسجيل الجهاز. اتأكد إن Firebase Cloud Messaging API متفعّل للمشروع، وإن مفتاح Web Push مظبوط.",
+      "timeout-load": "تحميل مكتبة Firebase اتأخر. اتأكد من الإنترنت أو من مانع الإعلانات وجرّب تاني.",
+      "timeout-sw": "خدمة الإشعارات ما اشتغلتش. اقفل الموقع وافتحه تاني وجرّب.",
+      "timeout-token": "Firebase ما ردش على تسجيل الجهاز. غالبًا Firebase Cloud Messaging API مش متفعّل للمشروع أو مفتاح الـ API متقيّد.",
+      "timeout-save": "حفظ اختيارك اتأخر. اتأكد إن قواعد Firestore اتنشرت وإن قاعدة البيانات شغالة.",
       "messaging/permission-blocked": "الإشعارات مقفولة للموقع من إعدادات المتصفح.",
       "messaging/unsupported-browser": "المتصفح ده مش بيدعم الإشعارات.",
       "messaging/failed-service-worker-registration": "ماقدرتش أشغّل خدمة الإشعارات. حدّث الصفحة بقوة وجرّب تاني.",
@@ -124,7 +139,7 @@
     var chosen = false;
     function choose(mode) {
       status.hidden = false; status.textContent = "ثواني...";
-      enable(MG, mode).then(function () {
+      enable(MG, mode, function (t) { status.textContent = t; }).then(function () {
         chosen = true;
         status.textContent = mode === "all" ? "تمام، هتوصلك إشعارات بتحديثات كل الألعاب." : "تمام، هتوصلك إشعارات بتحديثات الألعاب اللي نزّلتها.";
         setTimeout(function () { if (modal) modal.close(); }, 1800);
@@ -176,7 +191,7 @@
         function pick(mode) {
           return function () {
             msg.hidden = false; msg.textContent = "ثواني...";
-            enable(MG, mode).then(draw, function (e) { msg.textContent = errText(e); });
+            enable(MG, mode, function (t) { msg.textContent = t; }).then(draw, function (e) { msg.textContent = errText(e); });
           };
         }
         n.appendChild(h("div", { class: "actions" }, [
