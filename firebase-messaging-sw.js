@@ -17,7 +17,7 @@ try {
   firebase.messaging();
 } catch (e) { /* offline install: the app shell below still works */ }
 
-var CACHE = "mg-shell-v1";
+var CACHE = "mg-shell-v2";
 var SHELL = [
   "./", "index.html", "games.html", "game.html", "settings.html",
   "assets/style.css", "assets/app.js", "assets/notify.js",
@@ -50,7 +50,7 @@ self.addEventListener("fetch", function (e) {
     }
     return res;
   }).catch(function () {
-    return caches.match(r).then(function (m) { return m || caches.match("index.html"); });
+    return caches.match(r, { ignoreSearch: true }).then(function (m) { return m || caches.match("index.html", { ignoreSearch: true }); });
   }));
 });
 
