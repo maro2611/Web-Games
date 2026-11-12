@@ -135,7 +135,7 @@
     };
     // hand path
     segs = [];
-    var uu = plan.u, tipR = 66 * uu;
+    var uu = plan.u, tipR = 52 * uu;
     // the hand taps the M plate: fingertip lands on its centre
     var ang0 = Math.atan2(geo.my - plan.sy, geo.mx - plan.sx);
     plan.press = { x: geo.mx - Math.cos(ang0) * tipR, y: geo.my + 4 * S - Math.sin(ang0) * tipR };
@@ -164,56 +164,32 @@
     buildArm();
   }
 
-  /* ---- alien arm (SVG): glossy grey-green "figurine" look, glowing fingertips ---- */
+  /* ---- alien arm (SVG): smooth rubbery green monster arm, blob hand, no fingers or joints ---- */
   function buildArm() {
     fx.textContent = "";
     var u = plan.u;
     var defs = sv("defs", {}, fx);
-    function rg(id, stops) {
-      var g = sv("radialGradient", { id: id, cx: ".35", cy: ".3", r: ".8" }, defs);
-      stops.forEach(function (x) { sv("stop", { offset: x[0], "stop-color": x[1] }, g); });
-    }
-    rg("mgSkin", [["0", "#e9fff6"], ["0.35", "#9fe6cf"], ["0.75", "#4aa596"], ["1", "#1d5f5c"]]);
-    rg("mgTip", [["0", "#ffffff"], ["0.4", "#7cf8ff"], ["1", "#0fb6d6"]]);
+    var gr = sv("radialGradient", { id: "mgGreen", cx: ".35", cy: ".28", r: ".85" }, defs);
+    [["0", "#e3ff9a"], ["0.35", "#9be84a"], ["0.75", "#55b52a"], ["1", "#2b7d1c"]].forEach(function (x) { sv("stop", { offset: x[0], "stop-color": x[1] }, gr); });
     var shadow = sv("ellipse", { cx: plan.cx, cy: plan.floor + 4, rx: plan.bw * 0.55, ry: 9 * u, fill: "#000", opacity: 0 }, fx);
     shadow.setAttribute("style", "filter:blur(5px)");
-    var ring = sv("ellipse", { cx: plan.hit.x, cy: plan.floor, rx: 1, ry: 1, fill: "none", stroke: "#7cf0ff", "stroke-width": 3, opacity: 0 }, fx);
+    var ring = sv("ellipse", { cx: plan.hit.x, cy: plan.floor, rx: 1, ry: 1, fill: "none", stroke: "#b6ff6a", "stroke-width": 3, opacity: 0 }, fx);
     var sparks = [];
-    for (var i = 0; i < 10; i++) sparks.push(sv("line", { stroke: i % 2 ? "#fff" : "#7cf0ff", "stroke-width": 2.5, "stroke-linecap": "round", opacity: 0 }, fx));
+    for (var i = 0; i < 10; i++) sparks.push(sv("line", { stroke: i % 2 ? "#fff" : "#b6ff6a", "stroke-width": 2.5, "stroke-linecap": "round", opacity: 0 }, fx));
     var g = sv("g", {}, fx);
-    var dark = "#0b3b3a", skin = "#74cdb7";
-    function bone(w) {
-      return {
-        o: sv("path", { fill: "none", stroke: dark, "stroke-width": (w + 6) * u, "stroke-linecap": "round" }, g),
-        b: sv("path", { fill: "none", stroke: skin, "stroke-width": w * u, "stroke-linecap": "round" }, g),
-        s: sv("path", { fill: "none", stroke: "#0d4a48", "stroke-opacity": .38, "stroke-width": w * .5 * u, "stroke-linecap": "round" }, g),
-        h: sv("path", { fill: "none", stroke: "#eafff7", "stroke-opacity": .75, "stroke-width": w * .2 * u, "stroke-linecap": "round" }, g)
-      };
-    }
-    var up = bone(22), fo = bone(15);
-    var elbow = sv("circle", { r: 13 * u, fill: "url(#mgSkin)", stroke: dark, "stroke-width": 3 * u }, g);
+    var dark = "#1d5a14";
+    var body = sv("path", { fill: "#69c635", stroke: dark, "stroke-width": 3.2 * u, "stroke-linejoin": "round" }, g);
+    var shade = sv("path", { fill: "none", stroke: "#2f8a1c", "stroke-opacity": .45, "stroke-linecap": "round", "stroke-width": 7 * u }, g);
+    var hi = sv("path", { fill: "none", stroke: "#e8ffb8", "stroke-opacity": .7, "stroke-linecap": "round", "stroke-width": 3.4 * u }, g);
     var hand = sv("g", {}, g);
-    // glowing cuff at the wrist
-    var cuff = sv("ellipse", { cx: -17 * u, cy: 0, rx: 4.5 * u, ry: 13 * u, fill: "#0b3b3a", stroke: "#7cf8ff", "stroke-width": 2 * u }, hand);
-    var palm = sv("ellipse", { cx: 0, cy: 0, rx: 21 * u, ry: 17 * u, fill: "url(#mgSkin)", stroke: dark, "stroke-width": 3 * u }, hand);
-    var fing = [];
-    for (var k = 0; k < 4; k++) {
-      var fg = sv("g", {}, hand), segsL = [];
-      for (var q = 0; q < 3; q++) {
-        var wq = (k === 3 ? 7 : 6.2) - q * 0.9;
-        segsL.push({
-          o: sv("line", { stroke: dark, "stroke-width": (wq + 3.4) * u, "stroke-linecap": "round" }, fg),
-          b: sv("line", { stroke: skin, "stroke-width": wq * u, "stroke-linecap": "round" }, fg),
-          h: sv("line", { stroke: "#eafff7", "stroke-opacity": .7, "stroke-width": wq * .28 * u, "stroke-linecap": "round" }, fg)
-        });
-      }
-      var j1 = sv("circle", { r: 4.6 * u, fill: "url(#mgSkin)", stroke: dark, "stroke-width": 1.6 * u }, fg);
-      var j2 = sv("circle", { r: 4.1 * u, fill: "url(#mgSkin)", stroke: dark, "stroke-width": 1.6 * u }, fg);
-      var glow = sv("circle", { r: 8.5 * u, fill: "#7cf8ff", opacity: .28 }, fg);
-      var tip = sv("circle", { r: 4.6 * u, fill: "url(#mgTip)", stroke: "#0b6f86", "stroke-width": 1.2 * u }, fg);
-      fing.push({ g: fg, segs: segsL, j1: j1, j2: j2, tip: tip, glow: glow });
-    }
-    arm = { g: g, up: up, fo: fo, elbow: elbow, hand: hand, fing: fing, shadow: shadow, ring: ring, sparks: sparks, u: u };
+    var blob = sv("ellipse", { cx: 0, cy: 0, rx: 26 * u, ry: 21 * u, fill: "url(#mgGreen)", stroke: dark, "stroke-width": 3.2 * u }, hand);
+    var thumb = sv("ellipse", { cx: 2 * u, cy: 17 * u, rx: 10 * u, ry: 8 * u, fill: "url(#mgGreen)", stroke: dark, "stroke-width": 3 * u }, hand);
+    var nub = sv("ellipse", { cx: 30 * u, cy: 0, rx: 13 * u, ry: 9.5 * u, fill: "url(#mgGreen)", stroke: dark, "stroke-width": 3 * u, opacity: 0 }, hand);
+    var spots = [[-8, -6, 4], [5, -11, 3], [-2, 6, 3.2]].map(function (p) {
+      return sv("circle", { cx: p[0] * u, cy: p[1] * u, r: p[2] * u, fill: "#2f8a1c", "fill-opacity": .5 }, hand);
+    });
+    var shine = sv("ellipse", { cx: -8 * u, cy: -10 * u, rx: 8 * u, ry: 4 * u, fill: "#fff", "fill-opacity": .45, transform: "rotate(-20 " + (-8 * u) + " " + (-10 * u) + ")" }, hand);
+    arm = { g: g, body: body, shade: shade, hi: hi, hand: hand, blob: blob, thumb: thumb, nub: nub, shine: shine, spots: spots, shadow: shadow, ring: ring, sparks: sparks, u: u };
   }
 
   function ik(tx, ty) {
@@ -243,51 +219,39 @@
     return null;
   }
 
-  function setBone(b, x1, y1, x2, y2, w) {
-    var d = "M" + x1.toFixed(1) + " " + y1.toFixed(1) + "L" + x2.toFixed(1) + " " + y2.toFixed(1);
-    b.o.setAttribute("d", d); b.b.setAttribute("d", d);
-    var dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
-    var off = w * 0.22 * arm.u;
-    b.s.setAttribute("d", "M" + (x1 + nx * off).toFixed(1) + " " + (y1 + ny * off).toFixed(1) + "L" + (x2 + nx * off).toFixed(1) + " " + (y2 + ny * off).toFixed(1));
-    b.h.setAttribute("d", "M" + (x1 - nx * off).toFixed(1) + " " + (y1 - ny * off).toFixed(1) + "L" + (x2 - nx * off).toFixed(1) + " " + (y2 - ny * off).toFixed(1));
-  }
   function drawArm(h, t) {
-    var A = arm;
+    var A = arm, u = A.u;
     if (!h || h.x > W + plan.L1 * 1.3) { A.g.setAttribute("opacity", 0); return; }
     A.g.setAttribute("opacity", 1);
     var r = ik(h.x, h.y);
-    setBone(A.up, plan.sx, plan.sy, r.ex, r.ey, 22);
-    setBone(A.fo, r.ex, r.ey, r.wx, r.wy, 15);
-    A.elbow.setAttribute("cx", r.ex); A.elbow.setAttribute("cy", r.ey);
-    var ang = Math.atan2(r.wy - r.ey, r.wx - r.ex);
-    A.hand.setAttribute("transform", "translate(" + r.wx + " " + r.wy + ") rotate(" + (ang * 180 / Math.PI) + ")");
-    var u = A.u, c = clamp(h.c, 0, 1), point = h.seg && h.seg.pose === "point";
-    for (var k = 0; k < 4; k++) {
-      var f = A.fing[k];
-      var by = (k === 3 ? 13 : (k - 1) * 8.5) * u, bx = (k === 3 ? 5 : 15) * u;
-      var l1 = (k === 3 ? 13 : 21) * u, l2 = (k === 3 ? 11 : 17) * u, l3 = (k === 3 ? 9 : 14) * u;
-      var ck = point ? (k === 0 ? 0 : 1) : c;
-      var open = (k === 3 ? 58 : (k - 1) * 9) * Math.PI / 180;
-      var a1 = lerp(open, (78 + (k === 3 ? -25 : 0)) * Math.PI / 180, ck);
-      var a2 = a1 + lerp(.06, 1.15, ck), a3 = a2 + lerp(.05, .95, ck);
-      var x1 = bx + Math.cos(a1) * l1, y1 = by + Math.sin(a1) * l1;
-      var x2 = x1 + Math.cos(a2) * l2, y2 = y1 + Math.sin(a2) * l2;
-      var x3 = x2 + Math.cos(a3) * l3, y3 = y2 + Math.sin(a3) * l3;
-      var P = [[bx, by, x1, y1], [x1, y1, x2, y2], [x2, y2, x3, y3]];
-      for (var q = 0; q < 3; q++) {
-        var sg = f.segs[q], p = P[q];
-        [sg.o, sg.b, sg.h].forEach(function (ln, idx) {
-          var ox = 0, oy = 0;
-          if (idx === 2) { var dx = p[2] - p[0], dy = p[3] - p[1], ll = Math.hypot(dx, dy) || 1; ox = dy / ll * -1.3 * u; oy = dx / ll * 1.3 * u; }
-          ln.setAttribute("x1", p[0] + ox); ln.setAttribute("y1", p[1] + oy); ln.setAttribute("x2", p[2] + ox); ln.setAttribute("y2", p[3] + oy);
-        });
-      }
-      f.j1.setAttribute("cx", x1); f.j1.setAttribute("cy", y1);
-      f.j2.setAttribute("cx", x2); f.j2.setAttribute("cy", y2);
-      f.tip.setAttribute("cx", x3); f.tip.setAttribute("cy", y3);
-      f.glow.setAttribute("cx", x3); f.glow.setAttribute("cy", y3);
-      f.glow.setAttribute("opacity", (.22 + .14 * Math.sin(t * 6 + k)).toFixed(2));
+    var S = { x: plan.sx, y: plan.sy }, E = { x: r.ex, y: r.ey }, Wr = { x: r.wx, y: r.wy };
+    var C = { x: 2 * E.x - (S.x + Wr.x) / 2, y: 2 * E.y - (S.y + Wr.y) / 2 };   // curve passes through the elbow
+    var N = 18, Ls = [], Rs = [], mid = [], Hs = [];
+    var wS = 32 * u, wW = 15 * u;
+    for (var k = 0; k <= N; k++) {
+      var q = k / N, a = (1 - q) * (1 - q), b = 2 * (1 - q) * q, c2 = q * q;
+      var px = a * S.x + b * C.x + c2 * Wr.x, py = a * S.y + b * C.y + c2 * Wr.y;
+      var tx = 2 * (1 - q) * (C.x - S.x) + 2 * q * (Wr.x - C.x), ty = 2 * (1 - q) * (C.y - S.y) + 2 * q * (Wr.y - C.y);
+      var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+      var w = lerp(wS, wW, Math.pow(q, .8)) * (1 + .1 * Math.sin(q * Math.PI * 2.5));   // slightly rubbery, wobbly taper
+      Ls.push([px + nx * w / 2, py + ny * w / 2]); Rs.push([px - nx * w / 2, py - ny * w / 2]);
+      mid.push([px + nx * w * .28, py + ny * w * .28]); Hs.push([px - nx * w * .26, py - ny * w * .26]);
     }
+    function pts(a) { return a.map(function (p) { return p[0].toFixed(1) + " " + p[1].toFixed(1); }); }
+    A.body.setAttribute("d", "M" + pts(Ls).join("L") + "L" + pts(Rs.slice().reverse()).join("L") + "Z");
+    A.shade.setAttribute("d", "M" + pts(mid).join("L"));
+    A.hi.setAttribute("d", "M" + pts(Hs.slice(1, N - 2)).join("L"));
+    var ang = Math.atan2(r.wy - r.ey, r.wx - r.ex);
+    A.hand.setAttribute("transform", "translate(" + r.wx.toFixed(1) + " " + r.wy.toFixed(1) + ") rotate(" + (ang * 180 / Math.PI).toFixed(1) + ")");
+    var c = clamp(h.c, 0, 1), point = h.seg && h.seg.pose === "point";
+    var rx, ry;
+    if (point) { rx = 27; ry = 17; }
+    else { rx = lerp(28, 21, c); ry = lerp(20, 25, c); }        // squeezes when it holds a letter
+    A.blob.setAttribute("rx", rx * u); A.blob.setAttribute("ry", ry * u);
+    A.nub.setAttribute("opacity", point ? 1 : 0);
+    A.nub.setAttribute("cx", (rx + 6) * u);
+    A.thumb.setAttribute("opacity", point ? 0 : 1);
+    A.thumb.setAttribute("cy", ry * .78 * u);
   }
 
   /* ---- one frame ---- */
