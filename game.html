@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>لعبة | Marcelino Games</title>
 <meta name="description" content="ألعاب أندرويد بتتحمل مباشرة وببلاش من تطوير مارسيلينو فهمي.">
+<script>(function(){var show=true;try{var n=performance.getEntriesByType&&performance.getEntriesByType("navigation")[0];var reload=n&&n.type==="reload";if(sessionStorage.getItem("mg_splash")&&!reload)show=false;sessionStorage.setItem("mg_splash","1");}catch(e){}if(!show)document.documentElement.className+=" no-splash";})();</script>
+<noscript><style>#splash{display:none}</style></noscript>
 <meta name="theme-color" content="#0b0d17">
 <meta property="og:title" content="Marcelino Games">
 <meta property="og:description" content="ألعاب أندرويد بتتحمل مباشرة وببلاش من تطوير مارسيلينو فهمي.">
@@ -21,13 +23,21 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Changa:wght@500;600;800&family=Tajawal:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Changa:wght@500;600;800&family=Tajawal:wght@400;500;700&display=swap"></noscript>
-<link rel="stylesheet" href="assets/style.css?v=202611122352">
+<link rel="stylesheet" href="assets/style.css?v=202611130013">
 </head>
 <body data-page="game">
+<div id="splash" aria-hidden="true">
+  <div class="sp-glow"></div>
+  <img class="sp-pad" src="images/icon-512.png" alt="" width="320" height="320">
+  <div class="sp-name"><span class="sp-type">Marcelino <span>Games</span></span></div>
+  <div class="sp-sub">ألعاب أندرويد ببلاش</div>
+</div>
+<script>(function(){var s=document.getElementById("splash");if(!s)return;if(document.documentElement.classList.contains("no-splash")){s.remove();return;}var done=false;function out(){if(done)return;done=true;s.classList.add("out");setTimeout(function(){s.remove();},650);}var r=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;setTimeout(out,r?600:2700);s.addEventListener("click",out);})();</script>
+
 <main><div class="wrap"></div></main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="data/firebase-config.js?v=202611122352"></script>
-<script src="assets/notify.js?v=202611122352"></script>
-<script src="assets/app.js?v=202611122352"></script>
+<script src="data/firebase-config.js?v=202611130013"></script>
+<script src="assets/notify.js?v=202611130013"></script>
+<script src="assets/app.js?v=202611130013"></script>
 </body>
 </html>
