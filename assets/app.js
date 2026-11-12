@@ -260,7 +260,9 @@
 
     var go = h("button", { class: "btn block", type: "button", text: "حمّل دلوقتي", disabled: "disabled" });
     var label = h("p", { class: "muted", text: "التحميل هيجهز بعد" });
-    var after = h("p", { class: "muted", text: "ثواني" });
+    var after = h("p", { class: "muted" });
+    after.innerHTML = '<span class="mg-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+    svg.classList.add("mg-ring-spin");
     var sb = supportButton();
     var timer = null;
 
@@ -275,11 +277,14 @@
     timer = setInterval(function () {
       left -= 1;
       count.textContent = String(left);
+      count.classList.remove("mg-count-pop"); void count.offsetWidth; count.classList.add("mg-count-pop");
       barEl.style.strokeDashoffset = String(C * (1 - (TOTAL - left) / TOTAL));
       if (left <= 0) {
         clearInterval(timer);
         label.textContent = "جاهز";
         after.textContent = "";
+        svg.classList.remove("mg-ring-spin");
+        go.classList.add("mg-ready-pop");
         go.removeAttribute("disabled");
       }
     }, 1000);

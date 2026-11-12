@@ -104,6 +104,7 @@ window.MG_ADMIN = function (MG) {
     var off = h("button", { class: "btn secondary", type: "button", text: "فصل" });
     function show() {
       var on = !!ghToken();
+      state.classList.remove("mg-busy");
       state.textContent = on ? "GitHub متربط في الجلسة دي. تقدر ترفع ملفات الألعاب من نموذج اللعبة." : "GitHub مش متربط.";
       off.hidden = !on;
     }
@@ -111,13 +112,13 @@ window.MG_ADMIN = function (MG) {
       var t = input.value.trim();
       if (!t) return;
       setGhToken(t);
-      state.textContent = "بتأكد من التوكن...";
+      state.textContent = "بتأكد من التوكن..."; state.classList.add("mg-busy");
       ghApi("/repos/" + GH_REPO).then(function (r) {
-        if (!r.ok) { setGhToken(""); state.textContent = ghErr(r.status, r.data); return; }
+        if (!r.ok) { setGhToken(""); state.classList.remove("mg-busy"); state.textContent = ghErr(r.status, r.data); return; }
         input.value = "";
         show();
         if (r.data.permissions && r.data.permissions.push === false) state.textContent += " تنبيه: التوكن ده للقراءة بس ومش هيرفع.";
-      }, function () { setGhToken(""); state.textContent = "ماقدرتش أوصل لـ GitHub. اتأكد من النت."; });
+      }, function () { setGhToken(""); state.classList.remove("mg-busy"); state.textContent = "ماقدرتش أوصل لـ GitHub. اتأكد من النت."; });
     });
     off.addEventListener("click", function () { setGhToken(""); show(); });
     show();
@@ -401,7 +402,7 @@ window.MG_ADMIN = function (MG) {
         function doUpload(x, fileEl, statusEl, btn) {
           var f = fileEl.files[0];
           var s = slug.value.trim().toLowerCase();
-          function note(t) { statusEl.hidden = false; statusEl.textContent = t; }
+          function note(t) { statusEl.hidden = false; statusEl.textContent = t; statusEl.classList.toggle("mg-busy", /^(بجهّز|بيترفع)/.test(t)); }
           if (!ghToken()) return note("اربط GitHub الأول من الجزء اللي فوق (رفع ملفات الألعاب على GitHub).");
           if (!s) return note("اكتب الرابط (slug) بتاع اللعبة الأول.");
           if (!(x.version || "").trim()) return note("اكتب رقم الإصدار الأول.");
