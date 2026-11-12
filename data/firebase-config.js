@@ -12,4 +12,4 @@ window.FIREBASE_CONFIG = {
 
 /* Web Push key: Firebase console > Project settings > Cloud Messaging > Web Push certificates > Generate key pair.
    Notifications stay off until this is filled in. It is a public key, not a secret. */
-window.VAPID_KEY = "PUT_VAPID_KEY_HERE";
+window.VAPID_KEY = "BACSh-a5Wd6ft5Kk1EM8fk_WYRUwGcBU7qFEpmE8A7LFQd2gMsdMMBp1nj_urxYblmuTeCeNzo3UbE8LVBKLJag";
