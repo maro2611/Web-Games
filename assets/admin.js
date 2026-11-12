@@ -61,6 +61,7 @@ window.MG_ADMIN = function (MG) {
           var why = {
             "auth/unauthorized-domain": "الدومين مش متضاف في Firebase: Authentication ثم Settings ثم Authorized domains، وضيف maro2611.github.io",
             "auth/operation-not-allowed": "تسجيل الدخول بجوجل مش متفعّل: Authentication ثم Sign-in method ثم Google ثم Enable",
+            "auth/configuration-not-found": "خدمة Authentication لسه ما اتفعّلتش في مشروع Firebase: افتح Build ثم Authentication واضغط Get started، وبعدها Sign-in method ثم Google ثم Enable",
             "auth/popup-blocked": "المتصفح قفل النافذة المنبثقة. اسمح بالـ popups للموقع وجرّب تاني",
             "auth/popup-closed-by-user": "النافذة اتقفلت قبل ما تخلّص الدخول",
             "auth/cancelled-popup-request": "النافذة اتقفلت قبل ما تخلّص الدخول",
