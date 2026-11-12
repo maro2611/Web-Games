@@ -16,7 +16,7 @@
   var letters = [], plan = null, segs = [], arm = null, geo = null;
 
   /* ---- timeline (seconds) ---- */
-  var T = { click: 1.5, reveal0: 1.55, reveal1: 2.65, fall0: 2.3, armIn: 3.45, endFade: 8.7 };
+  var T = { mIn0: 0.3, mIn1: 3.0, click: 3.55, reveal0: 3.6, reveal1: 6.4, fall0: 5.9, armIn: 7.0, endFade: 12 };
 
   function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
   function lerp(a, b, u) { return a + (b - a) * u; }
@@ -123,17 +123,27 @@
     letters.forEach(function (L) {
       far = Math.max(far, Math.hypot(L.jx - sx, L.jy - sy), Math.hypot(L.cx - sx, L.cy - sy));
     });
+    far = Math.max(far, Math.hypot(geo.mx - sx, geo.my - sy) + 40);
     var lift = { x: Math.min(W - 60, maxX + 70 * Math.max(.8, far / 470)), y: Math.max(40, minY - H * 0.26) };
     var hit = { x: lift.x, y: floor - 8 };
     far = Math.max(far, Math.hypot(lift.x - sx, lift.y - sy));
     var L1 = far * 0.62;
-    var u = clamp(far / 330, 1.1, 2.1);
+    var u = clamp(far / 330, 1.1, 2.1) * 1.5;
     plan = {
       sx: sx, sy: sy, L1: L1, L2: L1, u: u, cx: cx, bw: bw, floor: floor, lift: lift, hit: hit,
       hidden: { x: sx + 1.9 * L1 * 0.98, y: sy - 40 }
     };
     // hand path
     segs = [];
+    var uu = plan.u, tipR = 66 * uu;
+    // the hand taps the M plate: fingertip lands on its centre
+    var ang0 = Math.atan2(geo.my - plan.sy, geo.mx - plan.sx);
+    plan.press = { x: geo.mx - Math.cos(ang0) * tipR, y: geo.my + 4 * S - Math.sin(ang0) * tipR };
+    plan.pre = { x: plan.press.x - Math.cos(ang0) * 90 * uu, y: plan.press.y - Math.sin(ang0) * 90 * uu - 12 * uu };
+    segs.push({ t0: 2.2, t1: 3.2, a: plan.hidden, b: plan.pre, c0: 0, c1: 0, e: eio, kind: "in", pose: "point" });
+    segs.push({ t0: 3.2, t1: 3.55, a: plan.pre, b: plan.press, c0: 0, c1: 0, e: eio, kind: "press", pose: "point" });
+    segs.push({ t0: 3.55, t1: 3.8, a: plan.press, b: plan.press, c0: 0, c1: 0, e: eio, kind: "tap", pose: "point" });
+    segs.push({ t0: 3.8, t1: 4.7, a: plan.press, b: plan.hidden, c0: 0, c1: .3, e: eio, kind: "away", pose: "point" });
     var t = T.armIn, prev = plan.hidden, cPrev = .9;
     letters.forEach(function (L, i) {
       var A = i === 0 ? 0.5 : 0.075, B = 0.115;
@@ -154,36 +164,56 @@
     buildArm();
   }
 
-  /* ---- alien arm (SVG) ---- */
+  /* ---- alien arm (SVG): glossy grey-green "figurine" look, glowing fingertips ---- */
   function buildArm() {
     fx.textContent = "";
     var u = plan.u;
+    var defs = sv("defs", {}, fx);
+    function rg(id, stops) {
+      var g = sv("radialGradient", { id: id, cx: ".35", cy: ".3", r: ".8" }, defs);
+      stops.forEach(function (x) { sv("stop", { offset: x[0], "stop-color": x[1] }, g); });
+    }
+    rg("mgSkin", [["0", "#e9fff6"], ["0.35", "#9fe6cf"], ["0.75", "#4aa596"], ["1", "#1d5f5c"]]);
+    rg("mgTip", [["0", "#ffffff"], ["0.4", "#7cf8ff"], ["1", "#0fb6d6"]]);
     var shadow = sv("ellipse", { cx: plan.cx, cy: plan.floor + 4, rx: plan.bw * 0.55, ry: 9 * u, fill: "#000", opacity: 0 }, fx);
     shadow.setAttribute("style", "filter:blur(5px)");
     var ring = sv("ellipse", { cx: plan.hit.x, cy: plan.floor, rx: 1, ry: 1, fill: "none", stroke: "#7cf0ff", "stroke-width": 3, opacity: 0 }, fx);
     var sparks = [];
     for (var i = 0; i < 10; i++) sparks.push(sv("line", { stroke: i % 2 ? "#fff" : "#7cf0ff", "stroke-width": 2.5, "stroke-linecap": "round", opacity: 0 }, fx));
     var g = sv("g", {}, fx);
-    var dark = "#0a3a35", skin = "#6ee7b7", hi = "#c8ffe9";
-    var upO = sv("path", { fill: "none", stroke: dark, "stroke-width": 26 * u, "stroke-linecap": "round", "stroke-linejoin": "round" }, g);
-    var foO = sv("path", { fill: "none", stroke: dark, "stroke-width": 20 * u, "stroke-linecap": "round" }, g);
-    var up = sv("path", { fill: "none", stroke: skin, "stroke-width": 20 * u, "stroke-linecap": "round" }, g);
-    var fo = sv("path", { fill: "none", stroke: skin, "stroke-width": 14 * u, "stroke-linecap": "round" }, g);
-    var foH = sv("path", { fill: "none", stroke: hi, "stroke-width": 3 * u, "stroke-linecap": "round", opacity: .55 }, g);
-    var elbow = sv("circle", { r: 13 * u, fill: skin, stroke: dark, "stroke-width": 3 * u }, g);
-    var hand = sv("g", {}, g);
-    var fing = [];
-    var palm = sv("ellipse", { cx: 0, cy: 0, rx: 21 * u, ry: 17 * u, fill: skin, stroke: dark, "stroke-width": 3 * u }, hand);
-    for (var k = 0; k < 4; k++) {
-      var fg = sv("g", {}, hand);
-      var o1 = sv("line", { x1: 0, y1: 0, x2: 1, y2: 0, stroke: dark, "stroke-width": 9 * u, "stroke-linecap": "round" }, fg);
-      var o2 = sv("line", { x1: 0, y1: 0, x2: 1, y2: 0, stroke: dark, "stroke-width": 9 * u, "stroke-linecap": "round" }, fg);
-      var s1 = sv("line", { x1: 0, y1: 0, x2: 1, y2: 0, stroke: skin, "stroke-width": 5 * u, "stroke-linecap": "round" }, fg);
-      var s2 = sv("line", { x1: 0, y1: 0, x2: 1, y2: 0, stroke: skin, "stroke-width": 5 * u, "stroke-linecap": "round" }, fg);
-      fing.push({ g: fg, lines: [o1, s1, o2, s2] });
+    var dark = "#0b3b3a", skin = "#74cdb7";
+    function bone(w) {
+      return {
+        o: sv("path", { fill: "none", stroke: dark, "stroke-width": (w + 6) * u, "stroke-linecap": "round" }, g),
+        b: sv("path", { fill: "none", stroke: skin, "stroke-width": w * u, "stroke-linecap": "round" }, g),
+        s: sv("path", { fill: "none", stroke: "#0d4a48", "stroke-opacity": .38, "stroke-width": w * .5 * u, "stroke-linecap": "round" }, g),
+        h: sv("path", { fill: "none", stroke: "#eafff7", "stroke-opacity": .75, "stroke-width": w * .2 * u, "stroke-linecap": "round" }, g)
+      };
     }
-    var tip = sv("circle", { r: 2.2 * u, fill: "#fff", opacity: .0 }, hand);
-    arm = { g: g, upO: upO, foO: foO, up: up, fo: fo, foH: foH, elbow: elbow, hand: hand, fing: fing, shadow: shadow, ring: ring, sparks: sparks, u: u };
+    var up = bone(22), fo = bone(15);
+    var elbow = sv("circle", { r: 13 * u, fill: "url(#mgSkin)", stroke: dark, "stroke-width": 3 * u }, g);
+    var hand = sv("g", {}, g);
+    // glowing cuff at the wrist
+    var cuff = sv("ellipse", { cx: -17 * u, cy: 0, rx: 4.5 * u, ry: 13 * u, fill: "#0b3b3a", stroke: "#7cf8ff", "stroke-width": 2 * u }, hand);
+    var palm = sv("ellipse", { cx: 0, cy: 0, rx: 21 * u, ry: 17 * u, fill: "url(#mgSkin)", stroke: dark, "stroke-width": 3 * u }, hand);
+    var fing = [];
+    for (var k = 0; k < 4; k++) {
+      var fg = sv("g", {}, hand), segsL = [];
+      for (var q = 0; q < 3; q++) {
+        var wq = (k === 3 ? 7 : 6.2) - q * 0.9;
+        segsL.push({
+          o: sv("line", { stroke: dark, "stroke-width": (wq + 3.4) * u, "stroke-linecap": "round" }, fg),
+          b: sv("line", { stroke: skin, "stroke-width": wq * u, "stroke-linecap": "round" }, fg),
+          h: sv("line", { stroke: "#eafff7", "stroke-opacity": .7, "stroke-width": wq * .28 * u, "stroke-linecap": "round" }, fg)
+        });
+      }
+      var j1 = sv("circle", { r: 4.6 * u, fill: "url(#mgSkin)", stroke: dark, "stroke-width": 1.6 * u }, fg);
+      var j2 = sv("circle", { r: 4.1 * u, fill: "url(#mgSkin)", stroke: dark, "stroke-width": 1.6 * u }, fg);
+      var glow = sv("circle", { r: 8.5 * u, fill: "#7cf8ff", opacity: .28 }, fg);
+      var tip = sv("circle", { r: 4.6 * u, fill: "url(#mgTip)", stroke: "#0b6f86", "stroke-width": 1.2 * u }, fg);
+      fing.push({ g: fg, segs: segsL, j1: j1, j2: j2, tip: tip, glow: glow });
+    }
+    arm = { g: g, up: up, fo: fo, elbow: elbow, hand: hand, fing: fing, shadow: shadow, ring: ring, sparks: sparks, u: u };
   }
 
   function ik(tx, ty) {
@@ -213,55 +243,71 @@
     return null;
   }
 
+  function setBone(b, x1, y1, x2, y2, w) {
+    var d = "M" + x1.toFixed(1) + " " + y1.toFixed(1) + "L" + x2.toFixed(1) + " " + y2.toFixed(1);
+    b.o.setAttribute("d", d); b.b.setAttribute("d", d);
+    var dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+    var off = w * 0.22 * arm.u;
+    b.s.setAttribute("d", "M" + (x1 + nx * off).toFixed(1) + " " + (y1 + ny * off).toFixed(1) + "L" + (x2 + nx * off).toFixed(1) + " " + (y2 + ny * off).toFixed(1));
+    b.h.setAttribute("d", "M" + (x1 - nx * off).toFixed(1) + " " + (y1 - ny * off).toFixed(1) + "L" + (x2 - nx * off).toFixed(1) + " " + (y2 - ny * off).toFixed(1));
+  }
   function drawArm(h, t) {
     var A = arm;
     if (!h || h.x > W + plan.L1 * 1.3) { A.g.setAttribute("opacity", 0); return; }
     A.g.setAttribute("opacity", 1);
     var r = ik(h.x, h.y);
-    var d1 = "M" + plan.sx + " " + plan.sy + "L" + r.ex + " " + r.ey;
-    var d2 = "M" + r.ex + " " + r.ey + "L" + r.wx + " " + r.wy;
-    A.upO.setAttribute("d", d1); A.up.setAttribute("d", d1);
-    A.foO.setAttribute("d", d2); A.fo.setAttribute("d", d2); A.foH.setAttribute("d", d2);
+    setBone(A.up, plan.sx, plan.sy, r.ex, r.ey, 22);
+    setBone(A.fo, r.ex, r.ey, r.wx, r.wy, 15);
     A.elbow.setAttribute("cx", r.ex); A.elbow.setAttribute("cy", r.ey);
     var ang = Math.atan2(r.wy - r.ey, r.wx - r.ex);
     A.hand.setAttribute("transform", "translate(" + r.wx + " " + r.wy + ") rotate(" + (ang * 180 / Math.PI) + ")");
-    var u = A.u, c = clamp(h.c, 0, 1);
-    var defs = [[-9, -.35], [-2, -.1], [6, .12], [12, .42]];   // base y (palm side +), spread
+    var u = A.u, c = clamp(h.c, 0, 1), point = h.seg && h.seg.pose === "point";
     for (var k = 0; k < 4; k++) {
       var f = A.fing[k];
-      var by = (k === 3 ? 13 : (k - 1) * 8.5) * u, bx = (k === 3 ? 4 : 17) * u;
-      var len1 = (k === 3 ? 15 : 24) * u, len2 = (k === 3 ? 13 : 20) * u;
-      var open = (k === 3 ? 62 : (k - 1) * 11) * Math.PI / 180;
-      var a1 = lerp(open, 80 * Math.PI / 180 + (k === 3 ? -.5 : 0), c);
-      var a2 = a1 + lerp(.1, 1.45, c);
-      var x1 = bx + Math.cos(a1) * len1, y1 = by + Math.sin(a1) * len1;
-      var x2 = x1 + Math.cos(a2) * len2, y2 = y1 + Math.sin(a2) * len2;
-      var L = f.lines;
-      L[0].setAttribute("x1", bx); L[0].setAttribute("y1", by); L[0].setAttribute("x2", x1); L[0].setAttribute("y2", y1);
-      L[1].setAttribute("x1", bx); L[1].setAttribute("y1", by); L[1].setAttribute("x2", x1); L[1].setAttribute("y2", y1);
-      L[2].setAttribute("x1", x1); L[2].setAttribute("y1", y1); L[2].setAttribute("x2", x2); L[2].setAttribute("y2", y2);
-      L[3].setAttribute("x1", x1); L[3].setAttribute("y1", y1); L[3].setAttribute("x2", x2); L[3].setAttribute("y2", y2);
+      var by = (k === 3 ? 13 : (k - 1) * 8.5) * u, bx = (k === 3 ? 5 : 15) * u;
+      var l1 = (k === 3 ? 13 : 21) * u, l2 = (k === 3 ? 11 : 17) * u, l3 = (k === 3 ? 9 : 14) * u;
+      var ck = point ? (k === 0 ? 0 : 1) : c;
+      var open = (k === 3 ? 58 : (k - 1) * 9) * Math.PI / 180;
+      var a1 = lerp(open, (78 + (k === 3 ? -25 : 0)) * Math.PI / 180, ck);
+      var a2 = a1 + lerp(.06, 1.15, ck), a3 = a2 + lerp(.05, .95, ck);
+      var x1 = bx + Math.cos(a1) * l1, y1 = by + Math.sin(a1) * l1;
+      var x2 = x1 + Math.cos(a2) * l2, y2 = y1 + Math.sin(a2) * l2;
+      var x3 = x2 + Math.cos(a3) * l3, y3 = y2 + Math.sin(a3) * l3;
+      var P = [[bx, by, x1, y1], [x1, y1, x2, y2], [x2, y2, x3, y3]];
+      for (var q = 0; q < 3; q++) {
+        var sg = f.segs[q], p = P[q];
+        [sg.o, sg.b, sg.h].forEach(function (ln, idx) {
+          var ox = 0, oy = 0;
+          if (idx === 2) { var dx = p[2] - p[0], dy = p[3] - p[1], ll = Math.hypot(dx, dy) || 1; ox = dy / ll * -1.3 * u; oy = dx / ll * 1.3 * u; }
+          ln.setAttribute("x1", p[0] + ox); ln.setAttribute("y1", p[1] + oy); ln.setAttribute("x2", p[2] + ox); ln.setAttribute("y2", p[3] + oy);
+        });
+      }
+      f.j1.setAttribute("cx", x1); f.j1.setAttribute("cy", y1);
+      f.j2.setAttribute("cx", x2); f.j2.setAttribute("cy", y2);
+      f.tip.setAttribute("cx", x3); f.tip.setAttribute("cy", y3);
+      f.glow.setAttribute("cx", x3); f.glow.setAttribute("cy", y3);
+      f.glow.setAttribute("opacity", (.22 + .14 * Math.sin(t * 6 + k)).toFixed(2));
     }
   }
 
   /* ---- one frame ---- */
-  var lastWall = "";
+  var lastWall = "", remeasured = false;
   function render(t) {
     // --- wall: M plate, click, pull back
-    var appear = eout(u01(t, 0.1, 1.0));
+    var appear = eio(u01(t, T.mIn0, T.mIn1));
     var click = t >= T.click;
     var rv = eio(u01(t, T.reveal0, T.reveal1));
-    var zoom = click ? lerp(2.5, 1, eio(u01(t, T.reveal0, T.reveal1 + .1))) : lerp(2.7, 2.5, u01(t, 0, T.click));
+    var zoom = click ? lerp(2.5, 1, eio(u01(t, T.reveal0, T.reveal1 + .1))) : lerp(2.75, 2.5, eout(u01(t, 0, T.click)));
     var R0 = 95 * S;                                    // local radius around the M plate
     var Rmax = Math.hypot(W, H) * 1.1;
     var R = lerp(R0, Rmax, rv);
-    var dim = click ? lerp(.6, 1, eout(u01(t, T.click, T.click + .5))) : lerp(.35, .6, u01(t, .2, T.click));
+    var dim = click ? lerp(.6, 1, eio(u01(t, T.click, T.reveal1))) : lerp(.45, .6, u01(t, .2, T.click));
     wall.style.opacity = (appear * dim).toFixed(3);
     wall.style.transformOrigin = geo.mx + "px " + geo.my + "px";
     wall.style.transform = "scale(" + zoom.toFixed(4) + ")";
     var m = "radial-gradient(circle at " + geo.mx.toFixed(1) + "px " + geo.my.toFixed(1) + "px,#000 " + (R * .62).toFixed(1) + "px,transparent " + R.toFixed(1) + "px)";
     if (m !== lastWall) { wall.style.webkitMaskImage = m; wall.style.maskImage = m; lastWall = m; }
-    shade.style.opacity = eout(u01(t, T.click + .3, T.click + 1.2)).toFixed(3);
+    shade.style.opacity = eio(u01(t, T.click + .6, T.reveal1)).toFixed(3);
 
     // click ripple + page flash
     var fu = u01(t, T.click, T.click + .9);
@@ -272,9 +318,10 @@
     } else flash.style.opacity = 0;
 
     if (!measured) {
-      if (t >= 1.2) { buildLetters(); measure(); } else return;
+      buildLetters(); measure();
     }
 
+    if (!remeasured && t >= T.fall0 - 0.4) { remeasured = true; buildLetters(); measure(); }
     // --- hand
     var h = handAt(t);
     drawArm(h, t);
