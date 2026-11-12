@@ -30,3 +30,13 @@ Settings ثم Pages ثم Source: **GitHub Actions**.
 
 الصور بتترفع من اللوحة وبتتصغّر تلقائيًا. ملفات الـ APK بتترفع في GitHub Releases. تقدر ترفعها من اللوحة نفسها: اربط توكن GitHub (Fine-grained، ريبو Web-Games، Contents: Read and write) من قسم "رفع ملفات الألعاب على GitHub"، وبعدها من خانة أي إصدار اختار الملف واضغط "ارفع الملف على GitHub" والرابط والحجم بيتملوا لوحدهم. التوكن بيتخزن في جلسة التبويب بس. أو ارفع الملف يدويًا في Releases والصق رابطه في خانة الإصدار.
 بعد ربط Firebase الموقع بيقرأ الألعاب من Firestore، وملف `data/games.json` بيفضل احتياطي لو Firebase مش متاح.
+
+## التطبيق والإشعارات
+- الموقع قابل للتثبيت كتطبيق (PWA) باسم Marcelino Games وأيقونته الدراع اللي عليه M. ملفاته: `manifest.webmanifest` و`firebase-messaging-sw.js` و`images/icon-*.png`.
+- أول ما حد يفتح الموقع بتظهر له رسالة بتسأله يفعّل الإشعارات: **لكل الألعاب** أو **للألعاب اللي نزّلها بس**. اختياره بيتسجل في Firestore (collection `subscribers`)، ويقدر يغيّره من صفحة الإعدادات.
+- تفعيل الإشعارات (مرة واحدة):
+  1. Firebase console ثم Project settings ثم Cloud Messaging ثم Web Push certificates ثم Generate key pair، وانسخ المفتاح في `window.VAPID_KEY` داخل `data/firebase-config.js`.
+  2. الصق `firestore.rules` الجديد في Firestore ثم Rules ثم Publish.
+  3. Project settings ثم Service accounts ثم Generate new private key. افتح الملف وانسخ محتواه كله، وضيفه في GitHub: Settings ثم Secrets and variables ثم Actions ثم New repository secret باسم `FIREBASE_SERVICE_ACCOUNT`.
+- إرسال إشعار: تبويب Actions ثم **Send notification** ثم Run workflow، واكتب العنوان والنص و`game` (slug اللعبة أو `all`).
+- على آيفون الإشعارات بتشتغل بعد إضافة الموقع للشاشة الرئيسية.

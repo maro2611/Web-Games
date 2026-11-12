@@ -287,6 +287,7 @@
     go.addEventListener("click", function () {
       if (go.hasAttribute("disabled")) return;
       if (!v.url) { go.textContent = "رابط التحميل لسه مش متضاف"; return; }
+      if (window.MG_PUSH) window.MG_PUSH.downloaded(g.slug);
       var a = h("a", { href: v.url, rel: "noopener", download: "" });
       document.body.appendChild(a);
       a.click();
@@ -387,17 +388,23 @@
       h("p", { class: "muted", text: "سجّل دخول بحساب جوجل بتاعك. لو الحساب هو صاحب الموقع هتقدر تضيف وتعدّل وتحذف الألعاب وتغيّر الصور، ولو مش هو هيتم رفض الدخول." }),
       h("div", { class: "actions" }, [h("a", { class: "btn", href: "admin.html", text: "لوحة التحكم" })])
     ]));
+    if (window.MG_PUSH) main.appendChild(window.MG_PUSH.settingsPanel(window.MG));
   }
 
   /* ---------- data: Firestore when configured, else data/games.json ---------- */
   function load(url) { return fetch(url, { cache: "no-cache" }).then(function (r) { return r.json(); }); }
   function fbReady() { var c = window.FIREBASE_CONFIG; return !!(c && c.apiKey && c.apiKey.indexOf("PUT_") !== 0); }
+  var scriptCache = {};
   function loadScript(src) {
-    return new Promise(function (res, rej) {
+    if (scriptCache[src]) return scriptCache[src];
+    scriptCache[src] = new Promise(function (res, rej) {
       var s = document.createElement("script");
-      s.src = src; s.onload = res; s.onerror = rej;
+      s.src = src;
+      s.onload = res;
+      s.onerror = function () { delete scriptCache[src]; rej(new Error("load " + src)); };
       document.head.appendChild(s);
     });
+    return scriptCache[src];
   }
   function loadFirebase(parts) {
     var base = "https://www.gstatic.com/firebasejs/10.12.2/firebase-";
@@ -424,7 +431,7 @@
     });
     return withTimeout(remote, 8000);
   }
-  window.MG = { h: h, $: $, ltr: ltr, fmtDate: fmtDate, fbReady: fbReady, loadFirebase: loadFirebase };
+  window.MG = { h: h, $: $, ltr: ltr, fmtDate: fmtDate, fbReady: fbReady, loadFirebase: loadFirebase, openModal: openModal };
 
   /* ---------- boot ---------- */
   /* The page paints at once, never waits for Firebase:
@@ -473,6 +480,7 @@
     else if (page === "settings") pageSettings();
     else if (page === "admin" && window.MG_ADMIN) window.MG_ADMIN(window.MG);
     if (repaint && y) window.scrollTo(0, y);
+    if (window.MG_PUSH && page !== "admin") window.MG_PUSH.init(window.MG);
   }
   function start() {
     var cached = readCache();

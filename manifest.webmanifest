@@ -1,11 +1,19 @@
 {
   "name": "Marcelino Games",
-  "short_name": "Marcelino",
+  "short_name": "Marcelino Games",
+  "description": "ألعاب أندرويد بتتحمل مباشرة وببلاش من تطوير مارسيلينو فهمي.",
+  "id": "./",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0b0d17",
   "theme_color": "#0b0d17",
   "lang": "ar",
-  "dir": "rtl"
+  "dir": "rtl",
+  "icons": [
+    { "src": "images/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "images/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "images/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
 }

@@ -1,0 +1,35 @@
+name: Send notification
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "عنوان الإشعار"
+        required: true
+        default: "تحديث جديد"
+      body:
+        description: "نص الإشعار"
+        required: true
+      game:
+        description: "slug اللعبة (أو all لكل المشتركين)"
+        required: true
+        default: "all"
+      link:
+        description: "صفحة تتفتح لما يضغط (اختياري)"
+        required: false
+        default: ""
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save firebase-admin@12
+      - run: node scripts/send-notification.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          N_TITLE: ${{ inputs.title }}
+          N_BODY: ${{ inputs.body }}
+          N_GAME: ${{ inputs.game }}
+          N_LINK: ${{ inputs.link }}

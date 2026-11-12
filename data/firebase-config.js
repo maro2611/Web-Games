@@ -9,3 +9,7 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "451098458088",
   appId: "1:451098458088:web:2afa29da464e5b5731965d"
 };
+
+/* Web Push key: Firebase console > Project settings > Cloud Messaging > Web Push certificates > Generate key pair.
+   Notifications stay off until this is filled in. It is a public key, not a secret. */
+window.VAPID_KEY = "PUT_VAPID_KEY_HERE";
