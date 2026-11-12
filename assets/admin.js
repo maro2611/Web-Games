@@ -81,8 +81,28 @@ window.MG_ADMIN = function (MG) {
       dashboard(u);
     }
 
+    /* After a wrong password the form is locked for 10 seconds. The end time is kept
+       in localStorage so a page refresh doesn't skip the wait. */
+    var LOCK_MS = 10000;
+    var LOCK_KEY = "mg-admin-lock-until";
+    var memLockUntil = 0;
+    function lockUntil() {
+      var t = memLockUntil;
+      try { t = Math.max(t, Number(localStorage.getItem(LOCK_KEY)) || 0); } catch (e) {}
+      return t;
+    }
+    function startLock() {
+      memLockUntil = Date.now() + LOCK_MS;
+      try { localStorage.setItem(LOCK_KEY, String(memLockUntil)); } catch (e) {}
+    }
+    function clearLock() {
+      memLockUntil = 0;
+      try { localStorage.removeItem(LOCK_KEY); } catch (e) {}
+    }
+
     function askPassword(u) {
       var input = h("input", { type: "password", id: "admin-pw", autocomplete: "current-password" });
+      var go = h("button", { class: "btn", type: "submit", text: "دخول" });
       var note = h("p", { class: "note", hidden: "hidden", role: "alert" });
       var form = h("form", { class: "panel" }, [
         h("h3", { text: "ادخل الباسوورد" }),
@@ -90,25 +110,48 @@ window.MG_ADMIN = function (MG) {
         h("div", { class: "field" }, [h("label", { for: "admin-pw", text: "الباسوورد" }), input]),
         note,
         h("div", { class: "actions" }, [
-          h("button", { class: "btn", type: "submit", text: "دخول" }),
+          go,
           h("button", { class: "btn secondary", type: "button", text: "تسجيل الخروج", onclick: signOut })
         ])
       ]);
+
+      var timer = null;
+      function secondsLeft() { return Math.ceil((lockUntil() - Date.now()) / 1000); }
+      function tick(prefix) {
+        if (!document.body.contains(form)) { clearInterval(timer); return; }
+        var left = secondsLeft();
+        if (left > 0) {
+          input.disabled = true; go.disabled = true;
+          note.hidden = false;
+          note.textContent = (prefix || "") + "استنى " + left + " ثواني وجرّب تاني.";
+        } else {
+          clearInterval(timer); timer = null;
+          input.disabled = false; go.disabled = false;
+          note.hidden = true;
+          input.focus();
+        }
+      }
+      function startCountdown(prefix) {
+        clearInterval(timer);
+        tick(prefix);
+        timer = setInterval(function () { tick(prefix); }, 250);
+      }
+
       form.addEventListener("submit", function (e) {
         e.preventDefault();
+        if (secondsLeft() > 0) return;
         sha256(input.value).then(function (hex) {
-          if (hex === PW_HASH) { markUnlocked(u); render(u); return; }
-          note.hidden = false;
-          note.textContent = "الباسوورد غلط. جرّب تاني.";
+          if (hex === PW_HASH) { clearLock(); markUnlocked(u); render(u); return; }
           input.value = "";
-          input.focus();
+          startLock();
+          startCountdown("الباسوورد غلط. ");
         }, function () {
           note.hidden = false;
           note.textContent = "المتصفح مش بيدعم التحقق من الباسوورد. جرّب متصفح تاني.";
         });
       });
       box.appendChild(form);
-      input.focus();
+      if (secondsLeft() > 0) startCountdown(""); else input.focus();
     }
 
     auth.onAuthStateChanged(function (u) { render(u); });
