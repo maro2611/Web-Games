@@ -10,9 +10,12 @@
 <body>
 <main><div class="wrap">
   <h1>فحص الموقع</h1>
-  <p>1) لو شايف السطر ده، الـ HTML شغال.</p>
-  <div class="panel"><h3>2) كارت</h3><p class="muted">لو شايف الكارت ده بشكله، ملف الـ CSS شغال.</p></div>
-  <div class="panel"><h3>3) نتايج الفحص</h3><ul id="out" style="padding-inline-start:18px;display:grid;gap:6px"><li>الـ JavaScript لسه ما اشتغلش.</li></ul></div>
+  <div class="panel"><h3>نتايج الفحص</h3><ul id="out" style="padding-inline-start:18px;display:grid;gap:6px"><li>الـ JavaScript لسه ما اشتغلش.</li></ul></div>
+  <div class="panel">
+    <h3>إعادة ضبط</h3>
+    <p class="muted">بيمسح النسخة القديمة المحفوظة على الجهاز (الكاش والخدمة والاختيارات) وبيعيد تحميل الموقع.</p>
+    <button class="btn" id="reset" type="button">مسح النسخة القديمة وإعادة التحميل</button>
+  </div>
 </div></main>
 <script src="data/firebase-config.js"></script>
 <script>
@@ -20,18 +23,30 @@
   var out = document.getElementById("out");
   out.textContent = "";
   function log(t) { var li = document.createElement("li"); li.textContent = t; out.appendChild(li); }
-  log("JavaScript شغال.");
-  log("المتصفح: " + navigator.userAgent);
-  log("العرض: " + innerWidth + " x " + innerHeight);
-  fetch("data/site.json").then(function (r) { log("data/site.json: " + r.status); }, function (e) { log("data/site.json فشل: " + e); });
-  fetch("data/games.json").then(function (r) { log("data/games.json: " + r.status); }, function (e) { log("data/games.json فشل: " + e); });
-  var c = window.FIREBASE_CONFIG;
-  log("إعدادات Firebase: " + (c && c.projectId ? c.projectId : "مش موجودة"));
+  function ls(k) { try { return localStorage.getItem(k); } catch (e) { return "غير متاح"; } }
+  var c = window.FIREBASE_CONFIG || {};
+  var v = window.VAPID_KEY || "";
+  log("إعدادات Firebase: " + (c.projectId || "مش موجودة"));
+  log("مفتاح الإشعارات: " + (v && v.indexOf("PUT_") !== 0 ? "موجود (" + v.slice(0, 6) + "...)" : "مش موجود"));
+  log("الإشعارات مدعومة: " + (("Notification" in window && "serviceWorker" in navigator && "PushManager" in window) ? "أيوه" : "لأ"));
+  log("إذن الإشعارات في المتصفح: " + (window.Notification ? Notification.permission : "-") + " (granted = مسموح، denied = مقفول، default = لسه ما اتسألش)");
+  log("اختيار الإشعارات المحفوظ: " + (ls("mg_push") || "مفيش"));
+  log("تأجيل رسالة الإشعارات: " + (ls("mg_push_snooze") ? "أيوه لحد " + new Date(Number(ls("mg_push_snooze"))).toLocaleString("ar-EG") : "لأ"));
+  try {
+    var cache = JSON.parse(ls("mg-data-v1"));
+    log("ألعاب محفوظة على الجهاز: " + (cache ? cache.games.map(function (g) { return g.slug; }).join(", ") || "مفيش" : "مفيش نسخة"));
+  } catch (e) { log("ألعاب محفوظة على الجهاز: مفيش"); }
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function (r) { log("خدمة التطبيق (Service Worker): " + (r.length ? r.length + " مسجّلة" : "مفيش")); });
+  }
+  fetch("data/firebase-config.js", { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
+    log("ملف الإعدادات على السيرفر فيه المفتاح: " + (t.indexOf("PUT_VAPID_KEY_HERE") < 0 ? "أيوه" : "لأ (قديم)"));
+  });
+
   var s = document.createElement("script");
   s.src = "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js";
-  s.onerror = function () { log("تحميل Firebase فشل (ممكن حاجب إعلانات أو إنترنت)."); };
+  s.onerror = function () { log("تحميل Firebase فشل (حاجب إعلانات أو إنترنت)."); };
   s.onload = function () {
-    log("تحميل Firebase تمام.");
     var s2 = document.createElement("script");
     s2.src = "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js";
     s2.onerror = function () { log("تحميل Firestore فشل."); };
@@ -39,15 +54,24 @@
       try {
         firebase.initializeApp(c);
         var done = false;
-        setTimeout(function () { if (!done) log("Firestore ما ردش خلال 6 ثواني (غالبًا قاعدة البيانات لسه ما اتعملتش)."); }, 6000);
+        setTimeout(function () { if (!done) log("Firestore ما ردش خلال 10 ثواني."); }, 10000);
         firebase.firestore().collection("games").where("hidden", "==", false).get().then(function (snap) {
-          done = true; log("Firestore رد: " + snap.size + " لعبة.");
-        }, function (e) { done = true; log("Firestore رفض: " + (e.code || e.message)); });
+          done = true;
+          log("الألعاب المنشورة في Firestore: " + snap.size + (snap.size ? " (" + snap.docs.map(function (d) { return d.id; }).join(", ") + ")" : ""));
+        }, function (e) { done = true; log("Firestore رفض قراءة الألعاب: " + (e.code || e.message)); });
       } catch (e) { log("خطأ: " + e.message); }
     };
     document.head.appendChild(s2);
   };
   document.head.appendChild(s);
+
+  document.getElementById("reset").addEventListener("click", function () {
+    var tasks = [];
+    try { ["mg-data-v1", "mg_push", "mg_push_snooze", "mg_install_dismissed", "mg_downloaded"].forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
+    if ("serviceWorker" in navigator) tasks.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+    if (window.caches) tasks.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }));
+    Promise.all(tasks).then(function () { location.href = "index.html"; }, function () { location.href = "index.html"; });
+  });
 })();
 </script>
 </body>
