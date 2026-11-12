@@ -28,5 +28,5 @@ Settings ثم Pages ثم Source: **GitHub Actions**.
 4. Build ثم Firestore Database ثم Create database (Production mode). من تبويب Rules الصق محتوى ملف `firestore.rules` واضغط Publish.
 5. Project settings (الترس) ثم Your apps ثم Web (`</>`) ثم Register. انسخ `firebaseConfig` وحطه في `data/firebase-config.js`.
 
-الصور بتترفع من اللوحة وبتتصغّر تلقائيًا. ملفات الـ APK بتترفع في GitHub Releases وبتحط رابطها في خانة الإصدار.
+الصور بتترفع من اللوحة وبتتصغّر تلقائيًا. ملفات الـ APK بتترفع في GitHub Releases. تقدر ترفعها من اللوحة نفسها: اربط توكن GitHub (Fine-grained، ريبو Web-Games، Contents: Read and write) من قسم "رفع ملفات الألعاب على GitHub"، وبعدها من خانة أي إصدار اختار الملف واضغط "ارفع الملف على GitHub" والرابط والحجم بيتملوا لوحدهم. التوكن بيتخزن في جلسة التبويب بس. أو ارفع الملف يدويًا في Releases والصق رابطه في خانة الإصدار.
 بعد ربط Firebase الموقع بيقرأ الألعاب من Firestore، وملف `data/games.json` بيفضل احتياطي لو Firebase مش متاح.

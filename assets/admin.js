@@ -39,6 +39,103 @@ window.MG_ADMIN = function (MG) {
     });
   }
 
+  /* ---------- game file upload to GitHub Releases (free, up to 2 GB per file) ----------
+     The token is kept for the current tab session only (sessionStorage), never saved in the repo or in Firestore. */
+  var GH_REPO = "maro2611/Web-Games";
+  var GH_TOKEN_KEY = "mg-gh-token";
+  var memToken = "";
+  function ghToken() {
+    try { return sessionStorage.getItem(GH_TOKEN_KEY) || memToken; } catch (e) { return memToken; }
+  }
+  function setGhToken(t) {
+    memToken = t;
+    try { if (t) sessionStorage.setItem(GH_TOKEN_KEY, t); else sessionStorage.removeItem(GH_TOKEN_KEY); } catch (e) {}
+  }
+  function ghErr(status, data) {
+    var m = data && data.message ? data.message : "";
+    if (status === 401) return "التوكن غلط أو منتهي. اعمل توكن جديد واربطه تاني.";
+    if (status === 403 || status === 404) return "التوكن مالوش صلاحية على الريبو. لازم Contents على Read and write لريبو Web-Games.";
+    if (status === 422 && /already_exists/.test(JSON.stringify(data || {}))) return "في ملف بنفس الاسم على GitHub في الإصدار ده. غيّر اسم الملف أو رقم الإصدار.";
+    return "GitHub رفض الطلب" + (m ? ": " + m : "") + " (" + status + ")";
+  }
+  function ghApi(path, method, body) {
+    var headers = { Authorization: "Bearer " + ghToken(), Accept: "application/vnd.github+json" };
+    if (body) headers["Content-Type"] = "application/json";
+    return fetch("https://api.github.com" + path, { method: method || "GET", headers: headers, body: body ? JSON.stringify(body) : undefined }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, data: d }; });
+    });
+  }
+  function ghRelease(tag, name, notes) {
+    return ghApi("/repos/" + GH_REPO + "/releases", "POST", { tag_name: tag, name: name, body: notes || "", target_commitish: "main" }).then(function (r) {
+      if (r.ok) return r.data;
+      if (r.status !== 422) throw new Error(ghErr(r.status, r.data));
+      /* a release with this tag already exists: reuse it */
+      return ghApi("/repos/" + GH_REPO + "/releases/tags/" + encodeURIComponent(tag)).then(function (g) {
+        if (!g.ok) throw new Error(ghErr(r.status, r.data));
+        return g.data;
+      });
+    });
+  }
+  function ghUpload(release, file, onProgress) {
+    return new Promise(function (res, rej) {
+      var url = String(release.upload_url).replace(/\{.*$/, "") + "?name=" + encodeURIComponent(file.name);
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.setRequestHeader("Authorization", "Bearer " + ghToken());
+      xhr.setRequestHeader("Accept", "application/vnd.github+json");
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      xhr.upload.onprogress = function (e) { if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 100)); };
+      xhr.onload = function () {
+        var d = {};
+        try { d = JSON.parse(xhr.responseText); } catch (e) {}
+        if (xhr.status === 201 && d.browser_download_url) res(d); else rej(new Error(ghErr(xhr.status, d)));
+      };
+      xhr.onerror = function () { rej(new Error("الرفع من المتصفح اتمنع أو النت فصل. ارفع الملف يدويًا على GitHub Releases والصق الرابط.")); };
+      xhr.send(file);
+    });
+  }
+  function relTag(slug, version) { return (slug + "-v" + version).replace(/[^A-Za-z0-9._-]/g, "-"); }
+  function fmtSize(b) { var mb = b / 1048576; return (mb < 10 ? mb.toFixed(1) : String(Math.round(mb))) + " MB"; }
+
+  function ghPanel() {
+    var state = h("p", { class: "note", role: "status" });
+    var input = h("input", { type: "password", placeholder: "github_pat_...", dir: "ltr", autocomplete: "off" });
+    var save = h("button", { class: "btn", type: "button", text: "ربط" });
+    var off = h("button", { class: "btn secondary", type: "button", text: "فصل" });
+    function show() {
+      var on = !!ghToken();
+      state.textContent = on ? "GitHub متربط في الجلسة دي. تقدر ترفع ملفات الألعاب من نموذج اللعبة." : "GitHub مش متربط.";
+      off.hidden = !on;
+    }
+    save.addEventListener("click", function () {
+      var t = input.value.trim();
+      if (!t) return;
+      setGhToken(t);
+      state.textContent = "بتأكد من التوكن...";
+      ghApi("/repos/" + GH_REPO).then(function (r) {
+        if (!r.ok) { setGhToken(""); state.textContent = ghErr(r.status, r.data); return; }
+        input.value = "";
+        show();
+        if (r.data.permissions && r.data.permissions.push === false) state.textContent += " تنبيه: التوكن ده للقراءة بس ومش هيرفع.";
+      }, function () { setGhToken(""); state.textContent = "ماقدرتش أوصل لـ GitHub. اتأكد من النت."; });
+    });
+    off.addEventListener("click", function () { setGhToken(""); show(); });
+    show();
+    return h("details", { class: "panel" }, [
+      h("summary", { text: "رفع ملفات الألعاب على GitHub (مجاني)" }),
+      h("p", { class: "muted", text: "عشان ترفع الملف من هنا محتاج توكن GitHub مرة في كل جلسة (بيتمسح لما تقفل التبويب)." }),
+      h("ol", null, [
+        h("li", null, [h("a", { href: "https://github.com/settings/personal-access-tokens/new", target: "_blank", rel: "noopener", text: "افتح صفحة إنشاء التوكن" }), " واكتب أي اسم، واختار مدة (مثلًا 30 يوم)."]),
+        h("li", { text: "في Repository access اختار Only select repositories واختار Web-Games." }),
+        h("li", { text: "في Repository permissions خلي Contents على Read and write، واضغط Generate token." }),
+        h("li", { text: "انسخ التوكن والصقه هنا واضغط ربط." })
+      ]),
+      h("div", { class: "field" }, [h("label", { text: "توكن GitHub" }), input]),
+      h("div", { class: "actions" }, [save, off]),
+      state
+    ]);
+  }
+
   MG.loadFirebase(["auth", "firestore"]).then(function (fb) {
     var auth = fb.auth();
     var db = fb.firestore();
@@ -206,6 +303,7 @@ window.MG_ADMIN = function (MG) {
       box.appendChild(h("div", { class: "actions" }, [
         h("button", { class: "btn", type: "button", text: "إضافة لعبة", onclick: function () { openForm(null, false); } })
       ]));
+      box.appendChild(ghPanel());
       box.appendChild(msg);
       box.appendChild(formBox);
       box.appendChild(h("h2", { text: "الألعاب" }));
@@ -300,6 +398,26 @@ window.MG_ADMIN = function (MG) {
         drawShots();
 
         var versBox = h("div", { class: "stack" });
+        function doUpload(x, fileEl, statusEl, btn) {
+          var f = fileEl.files[0];
+          var s = slug.value.trim().toLowerCase();
+          function note(t) { statusEl.hidden = false; statusEl.textContent = t; }
+          if (!ghToken()) return note("اربط GitHub الأول من الجزء اللي فوق (رفع ملفات الألعاب على GitHub).");
+          if (!s) return note("اكتب الرابط (slug) بتاع اللعبة الأول.");
+          if (!(x.version || "").trim()) return note("اكتب رقم الإصدار الأول.");
+          if (!f) return note("اختار الملف الأول.");
+          btn.disabled = true;
+          note("بجهّز الإصدار على GitHub...");
+          ghRelease(relTag(s, x.version.trim()), (title.value.trim() || s) + " " + x.version.trim(), x.changelog)
+            .then(function (rel) { return ghUpload(rel, f, function (p) { note("بيترفع... " + p + "%"); }); })
+            .then(function (asset) {
+              x.url = asset.browser_download_url;
+              x.size = fmtSize(f.size);
+              say("الملف اترفع واتحط رابطه والحجم. اضغط نشر أو حفظ كمسودة عشان تحفظ التغييرات.");
+              drawVers();
+            })
+            .catch(function (e) { btn.disabled = false; note(e.message); });
+        }
         function drawVers() {
           versBox.textContent = "";
           st.versions.forEach(function (x, i) {
@@ -310,9 +428,15 @@ window.MG_ADMIN = function (MG) {
             }
             var ch = h("textarea", { rows: "2", placeholder: "إيه اللي اتغير" }); ch.value = x.changelog || "";
             ch.addEventListener("input", function () { x.changelog = ch.value; });
+            var fileIn = h("input", { type: "file" });
+            var upStatus = h("p", { class: "note", hidden: "hidden", role: "status" });
+            var upBtn = h("button", { class: "btn", type: "button", text: "ارفع الملف على GitHub" });
+            upBtn.addEventListener("click", function () { doUpload(x, fileIn, upStatus, upBtn); });
             versBox.appendChild(h("div", { class: "panel" }, [
               h("div", { class: "tools" }, [bind("version", "رقم الإصدار 1.0"), bind("date", "", "date"), bind("size", "الحجم 45 MB")]),
               bind("url", "رابط التحميل المباشر (GitHub Releases)", "url"),
+              h("div", { class: "field" }, [h("label", { text: "أو ارفع ملف اللعبة من هنا (الرابط والحجم بيتملوا لوحدهم)" }), fileIn, upBtn, upStatus]),
+              h("a", { class: "muted", href: "https://github.com/" + GH_REPO + "/releases/new", target: "_blank", rel: "noopener", text: "بديل: ارفع الملف يدويًا على GitHub Releases والصق الرابط فوق." }),
               ch,
               st.versions.length > 1 ? h("button", { class: "btn secondary", type: "button", text: "حذف الإصدار ده", onclick: function () { st.versions.splice(i, 1); drawVers(); } }) : null
             ]));
