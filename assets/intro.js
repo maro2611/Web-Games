@@ -214,7 +214,8 @@
     var S = 1, SHIFT = 0, offX = 0, offY = 0, plX = W / 2, plY = H * .35, Z0 = 2.2, ctrlBottom = H * .6, Mx = W / 2, baseY = 0, restTipY = 0, mHalfH = 40, bx = 0, by = 0, R0 = 100, Rmax = 1000, diag = 1000;
     var WS = { z: 2.2, r: 100, op: 0, k: 1 };      // wall state: zoom, spotlight radius, opacity, press dip
     function geom() {
-      S = Math.max(W / 1200, H / 800);
+      var cover = Math.max(W / 1200, H / 800);
+      S = W < H * .9 ? Math.min(cover, W / 960) : cover;      // tall phone screens: shrink the picture so the WHOLE controller fits (not only its middle)
       SHIFT = Math.round(H * .09);
       offX = (W - 1200 * S) / 2; offY = (H - 800 * S) / 2 - SHIFT;
       plX = offX + 600 * S; plY = offY + 277 * S;
@@ -288,7 +289,13 @@
       mw.style.transform = "translate3d(" + (plX - hs / 2) + "px," + (plY - hs / 2) + "px,0)";
       baseY = plY + mHalfH;
       restTipY = baseY + 6;
-      wimg.style.top = -SHIFT + "px"; wimg.style.bottom = SHIFT + "px";
+      if (S < Math.max(W / 1200, H / 800) - .0005) {
+        wimg.style.cssText = "left:" + offX.toFixed(1) + "px;top:" + offY.toFixed(1) + "px;width:" + (1200 * S).toFixed(1) + "px;height:" + (800 * S).toFixed(1) + "px;right:auto;bottom:auto;background-size:100% 100%;" +
+          "-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 14%,#000 80%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 14%,#000 80%,transparent 100%)";
+      } else {
+        wimg.style.cssText = "";
+        wimg.style.top = -SHIFT + "px"; wimg.style.bottom = SHIFT + "px";
+      }
       wall.style.transformOrigin = plX + "px " + plY + "px";
       drawWall();
     }
