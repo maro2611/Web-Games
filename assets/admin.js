@@ -94,6 +94,35 @@ window.MG_ADMIN = function (MG) {
       xhr.send(file);
     });
   }
+  function b64utf8(str) { return btoa(unescape(encodeURIComponent(str))); }
+  function ghPut(path, b64, msg) {
+    var p = "/repos/" + GH_REPO + "/contents/" + path;
+    return ghApi(p).then(function (cur) {
+      var body = { message: msg, content: b64, branch: "main" };
+      if (cur.ok && cur.data && cur.data.sha) body.sha = cur.data.sha;
+      return ghApi(p, "PUT", body);
+    });
+  }
+  function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  var SITE = "https://maro2611.github.io/Web-Games/";
+  /* a tiny static page per game so WhatsApp / Facebook show its name, text and picture when the link is shared */
+  function sharePage(s, t, d, img) {
+    var url = SITE + "game.html?g=" + encodeURIComponent(s), desc = d.replace(/\s+/g, " ").slice(0, 160);
+    return '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<title>' + esc(t) + ' | Marcelino Games</title><meta name="description" content="' + esc(desc) + '">' +
+      '<meta property="og:type" content="website"><meta property="og:title" content="' + esc(t) + '"><meta property="og:description" content="' + esc(desc) + '">' +
+      '<meta property="og:image" content="' + esc(img) + '"><meta property="og:url" content="' + esc(SITE + "g/" + s + ".html") + '"><meta name="twitter:card" content="summary_large_image">' +
+      '<link rel="canonical" href="' + esc(url) + '"><meta http-equiv="refresh" content="0;url=' + esc(url) + '"></head>' +
+      '<body><p><a href="' + esc(url) + '">' + esc(t) + '</a></p><script>location.replace(' + JSON.stringify(url) + ')</script></body></html>\n';
+  }
+  function publishSharePage(s, t, d, wallpaper) {
+    if (!ghToken()) return Promise.resolve("no-token");
+    var img = SITE + "images/banner.jpg", pre = Promise.resolve();
+    var m = /^data:image\/jpeg;base64,(.+)$/.exec(wallpaper || "");
+    if (m) { img = SITE + "images/games/" + s + ".jpg"; pre = ghPut("images/games/" + s + ".jpg", m[1], "Share image for " + s); }
+    return pre.then(function () { return ghPut("g/" + s + ".html", b64utf8(sharePage(s, t, d, img)), "Share page for " + s); })
+      .then(function (r) { return r.ok ? "ok" : "fail"; }, function () { return "fail"; });
+  }
   function relTag(slug, version) { return (slug + "-v" + version).replace(/[^A-Za-z0-9._-]/g, "-"); }
   function fmtSize(b) { var mb = b / 1048576; return (mb < 10 ? mb.toFixed(1) : String(Math.round(mb))) + " MB"; }
 
@@ -310,6 +339,31 @@ window.MG_ADMIN = function (MG) {
       box.appendChild(h("h2", { text: "الألعاب" }));
       box.appendChild(list);
 
+      /* ---- statistics: downloads and ratings per game, and the site rating ---- */
+      var statBox = h("div", { class: "stack" });
+      function loadStats() {
+        statBox.textContent = ""; statBox.appendChild(h("p", { class: "muted mg-busy", text: "بحمّل الإحصائيات..." }));
+        db.collection("stats").get().then(function (snap) {
+          statBox.textContent = "";
+          var by = {}; snap.docs.forEach(function (d) { by[d.id] = d.data(); });
+          function avg(x) { return x && x.ratingCount ? ((x.ratingSum || 0) + (x.halfSum || 0) / 2) / x.ratingCount : 0; }
+          var total = 0; Object.keys(by).forEach(function (k) { if (k !== "_site") total += by[k].downloads || 0; });
+          var site = by._site;
+          statBox.appendChild(h("div", { class: "panel" }, [
+            h("p", { class: "num", text: String(total) }), h("p", { class: "muted", text: "إجمالي التحميلات" }),
+            h("p", { text: site && site.ratingCount ? "تقييم الموقع: " + avg(site).toFixed(1) + " من 5 (" + site.ratingCount + " تقييم)" : "تقييم الموقع: لسه مفيش تقييمات" })
+          ]));
+          var rows = games.slice().sort(function (a, b) { return ((by[b.slug] || {}).downloads || 0) - ((by[a.slug] || {}).downloads || 0); }).map(function (g) {
+            var x = by[g.slug] || {};
+            return h("tr", null, [h("td", { text: g.title }), h("td", { text: String(x.downloads || 0) }), h("td", { text: x.ratingCount ? avg(x).toFixed(1) + " (" + x.ratingCount + ")" : "-" })]);
+          });
+          if (rows.length) statBox.appendChild(h("div", { class: "table-scroll" }, [h("table", null, [h("tr", null, [h("th", { text: "اللعبة" }), h("th", { text: "التحميلات" }), h("th", { text: "التقييم" })])].concat(rows))]));
+        }).catch(function () { statBox.textContent = ""; statBox.appendChild(h("p", { class: "empty", text: "ماقدرتش أحمّل الإحصائيات." })); });
+      }
+      box.appendChild(h("h2", { text: "الإحصائيات" }));
+      box.appendChild(h("div", { class: "actions" }, [h("button", { class: "btn secondary", type: "button", text: "تحديث الإحصائيات", onclick: loadStats })]));
+      box.appendChild(statBox);
+
       /* ---- complaints moderation: read everything, delete any complaint or comment ---- */
       var FV = window.firebase.firestore.FieldValue;
       var cList = h("div", { class: "stack" });
@@ -361,9 +415,12 @@ window.MG_ADMIN = function (MG) {
           actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "إلغاء", onclick: loadComplaints }));
         });
         actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "التعليقات", onclick: showComments }));
+        actions.appendChild(h("button", { class: "btn secondary", type: "button", text: c.hidden ? "إظهار للزوار" : "إخفاء عن الزوار", onclick: function () {
+          d.ref.update({ hidden: !c.hidden }).then(function () { say(c.hidden ? "ظهرت للزوار." : "اتخفت عن الزوار."); loadComplaints(); }, function () { say("ماتحدّثتش."); });
+        } }));
         actions.appendChild(del);
         return h("div", { class: "panel" }, [
-          h("h3", { text: c.name + (c.game ? " · " + c.game : "") }),
+          h("h3", { text: c.name + (c.game ? " · " + c.game : "") + (c.hidden ? " (مخفية)" : "") }),
           h("p", { class: "muted" }, [when(c.created) + "  ", cnt]),
           h("p", { text: c.text, style: "white-space:pre-wrap;overflow-wrap:anywhere" }),
           actions, cbox
@@ -426,6 +483,9 @@ window.MG_ADMIN = function (MG) {
         var desc = h("textarea", { rows: "4" }); desc.value = g ? g.desc : "";
         var platform = h("select", null, [h("option", { value: "Android", text: "Android" }), h("option", { value: "Windows", text: "Windows" })]);
         platform.value = g ? g.platform : "Android";
+        var CATS = ["", "أكشن", "ألغاز", "سباق", "مغامرات", "استراتيجية", "رعب", "أطفال", "أخرى"];
+        var category = h("select", null, CATS.map(function (c) { return h("option", { value: c, text: c || "بدون تصنيف" }); }));
+        category.value = g && g.category ? g.category : "";
         var minA = h("input", { type: "text", value: g ? (g.minAndroid || "") : "8.0", dir: "ltr" });
         var ram = h("input", { type: "text", value: g ? (g.ram || "") : "2 GB", dir: "ltr" });
 
@@ -521,7 +581,7 @@ window.MG_ADMIN = function (MG) {
           });
           if (!vers.length) return say("لازم إصدار واحد على الأقل برقمه.");
           var doc = {
-            title: t, desc: desc.value.trim(), platform: platform.value,
+            title: t, desc: desc.value.trim(), platform: platform.value, category: category.value,
             wallpaper: st.wallpaper, screenshots: st.shots,
             minAndroid: minA.value.trim(), ram: ram.value.trim(),
             hue: g && g.hue ? g.hue : Math.floor(Math.random() * 360),
@@ -533,6 +593,11 @@ window.MG_ADMIN = function (MG) {
             say(hidden ? "اتحفظت كمسودة." : "اتنشرت.");
             formBox.textContent = "";
             refresh();
+            if (!hidden) publishSharePage(s, t, doc.desc, doc.wallpaper).then(function (r) {
+              if (r === "ok") say("اتنشرت، ومعاينة الرابط على واتساب اتجهزت.");
+              else if (r === "no-token") say("اتنشرت. اربط GitHub وعدّل واحفظ تاني عشان تظهر معاينة الرابط على واتساب.");
+              else say("اتنشرت، بس معاينة الرابط ماتجهزتش (صلاحية GitHub).");
+            });
           }, function () { say("ماتحفظتش. اتأكد من قواعد Firestore وإنك داخل بحساب صاحب الموقع."); });
         }
 
@@ -543,6 +608,7 @@ window.MG_ADMIN = function (MG) {
           field("الرابط (slug)", slug, "f-slug"),
           field("الوصف", desc, "f-desc"),
           field("المنصة", platform, "f-platform"),
+          field("التصنيف", category, "f-category"),
           field("أقل إصدار أندرويد", minA, "f-min"),
           field("الرام المناسب", ram, "f-ram"),
           h("div", { class: "field" }, [h("label", { text: "صورة اللعبة (الوول بيبر)" }), wallIn, wallPrev]),
@@ -561,7 +627,7 @@ window.MG_ADMIN = function (MG) {
         formBox.scrollIntoView({ behavior: "smooth", block: "start" });
       }
 
-      refresh();
+      refresh().then(loadStats);
     }
   }).catch(function () {
     box.appendChild(h("p", { class: "empty", text: "ماقدرتش أحمّل Firebase. جرّب تحدّث الصفحة." }));

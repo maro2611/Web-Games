@@ -203,7 +203,7 @@
 
   function pageGames() {
     var main = $("main .wrap") || $("main");
-    var state = { q: "", platform: "الكل" };
+    var state = { q: "", platform: "الكل", cat: "الكل" };
     var list = visible().sort(byNewest);
 
     main.appendChild(h("h1", { text: "ألعاب الأندرويد" }));
@@ -216,7 +216,9 @@
 
     var search = h("input", { type: "search", placeholder: "ابحث باسم اللعبة", "aria-label": "بحث" });
     var chipsBox = h("div", { class: "chips", role: "group", "aria-label": "المنصة" });
+    var catBox = h("div", { class: "chips", role: "group", "aria-label": "التصنيف" });
     main.appendChild(h("div", { class: "tools" }, [search, chipsBox]));
+    main.appendChild(catBox);
     var grid = h("div", { class: "grid" });
     main.appendChild(h("h2", { text: "كل الألعاب" }));
     main.appendChild(grid);
@@ -232,10 +234,24 @@
         }));
       });
     }
+    function cats() {
+      var set = [];
+      list.forEach(function (g) { if (g.category && set.indexOf(g.category) < 0) set.push(g.category); });
+      catBox.textContent = "";
+      catBox.hidden = !set.length;
+      if (!set.length) return;
+      ["الكل"].concat(set).forEach(function (c) {
+        catBox.appendChild(h("button", {
+          class: "chip", type: "button", text: c, "aria-pressed": String(state.cat === c),
+          onclick: function () { state.cat = c; cats(); draw(); }
+        }));
+      });
+    }
     function draw() {
       var q = state.q.trim().toLowerCase();
       var rows = list.filter(function (g) {
         return (state.platform === "الكل" || g.platform === state.platform) &&
+          (state.cat === "الكل" || g.category === state.cat) &&
           (!q || g.title.toLowerCase().indexOf(q) >= 0);
       });
       grid.textContent = "";
@@ -243,7 +259,7 @@
       rows.forEach(function (g) { grid.appendChild(gameCard(g)); });
     }
     search.addEventListener("input", function () { state.q = search.value; draw(); });
-    chips(); draw();
+    chips(); cats(); draw();
   }
 
   function openDownload(g, v) {
@@ -371,7 +387,7 @@
 
     var share = h("button", { class: "btn secondary block", type: "button", text: "نسخ رابط اللعبة" });
     share.addEventListener("click", function () {
-      if (navigator.clipboard) navigator.clipboard.writeText(location.href).then(function () {
+      if (navigator.clipboard) navigator.clipboard.writeText(location.origin + location.pathname.replace(/[^\/]*$/, "") + "g/" + g.slug + ".html").then(function () {
         share.textContent = "اتنسخ";
         setTimeout(function () { share.textContent = "نسخ رابط اللعبة"; }, 1500);
       }, function () {});
@@ -418,7 +434,16 @@
     var seq = Promise.resolve();
     ["app"].concat(parts).forEach(function (p) { seq = seq.then(function () { return loadScript(base + p + "-compat.js"); }); });
     return seq.then(function () {
-      if (!window.firebase.apps.length) window.firebase.initializeApp(window.FIREBASE_CONFIG);
+      if (!window.firebase.apps.length) {
+        window.firebase.initializeApp(window.FIREBASE_CONFIG);
+        /* optional bot protection: set APPCHECK_KEY (reCAPTCHA v3 site key) in data/firebase-config.js */
+        if (window.APPCHECK_KEY) {
+          return loadScript(base + "app-check-compat.js").then(function () {
+            window.firebase.appCheck().activate(window.APPCHECK_KEY, true);
+            return window.firebase;
+          }, function () { return window.firebase; });
+        }
+      }
       return window.firebase;
     });
   }
@@ -636,7 +661,7 @@
     }
     var items = [];
     complaintsDb().then(function (x) { return withTimeout(x.db.collection("complaints").orderBy("created", "desc").limit(40).get(), 10000); })
-      .then(function (snap) { items = snap.docs.map(function (d) { var o = d.data(); o.id = d.id; return o; }); draw(items); })
+      .then(function (snap) { items = snap.docs.map(function (d) { var o = d.data(); o.id = d.id; return o; }).filter(function (o) { return !o.hidden; }); draw(items); })
       .catch(function () { list.textContent = ""; list.appendChild(h("p", { class: "empty", text: "ماقدرتش أحمّل الشكاوى. جرّب تحدّث الصفحة." })); });
 
     form.addEventListener("submit", function (e) {
