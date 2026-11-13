@@ -235,7 +235,7 @@
       var nat = z.offsetLeft + z.offsetWidth - a.offsetLeft;
       geom();
       fs = clamp(Math.min(100 * Math.min(W * .9, 1060) / Math.max(nat, 1), H * .1), 24, 150);
-      u = clamp(fs / 52, .75, 2.2);
+      u = clamp(fs / 52, .75, 2.2) * 1.55;
       LIFT = clamp(fs * .5, 24, 56);
       nameEl.style.fontSize = fs + "px";
       pillFs = clamp(fs * .36, 15, 44);
@@ -306,94 +306,136 @@
       wall.style.opacity = WS.op.toFixed(3);
     }
 
-    /* ---------- the alien arm (rubbery arm + 3-finger hand) ---------- */
-    var DARK = "#0e4a14";
+    /* ---------- the monster arm: furry striped arm + 5-finger clawed hand ---------- */
+    var DARK = "#3a0b22";
     var adefs = sv("defs", {}, armSvg);
     var ag = sv("linearGradient", { id: "mgiArmG", x1: "0", y1: "0", x2: "0", y2: "1" }, adefs);
-    [["0", "#d9ff82"], ["0.4", "#7cf33b"], ["1", "#2fa81c"]].forEach(function (x) { sv("stop", { offset: x[0], "stop-color": x[1] }, ag); });
+    [["0", "#ffa3c3"], ["0.45", "#d63a7a"], ["1", "#8a1c52"]].forEach(function (x) { sv("stop", { offset: x[0], "stop-color": x[1] }, ag); });
     var pg = sv("radialGradient", { id: "mgiPalmG", cx: ".35", cy: ".3", r: ".85" }, adefs);
-    [["0", "#e6ffa0"], ["0.4", "#86f642"], ["1", "#2ea51b"]].forEach(function (x) { sv("stop", { offset: x[0], "stop-color": x[1] }, pg); });
+    [["0", "#ffc9dc"], ["0.45", "#e0457f"], ["1", "#8a1c52"]].forEach(function (x) { sv("stop", { offset: x[0], "stop-color": x[1] }, pg); });
     var armG = sv("g", { opacity: 0 }, armSvg);
     var aBody = sv("path", { fill: "url(#mgiArmG)", stroke: DARK, "stroke-linejoin": "round" }, armG);
-    var aHi = sv("path", { fill: "none", stroke: "#f0ffc8", "stroke-opacity": .6, "stroke-linecap": "round" }, armG);
+    var aSh = sv("path", { fill: "none", stroke: "#3a0b22", "stroke-opacity": .32, "stroke-linecap": "round" }, armG);       // belly shade
+    var aStr = sv("path", { fill: "none", stroke: "#4a0f2c", "stroke-opacity": .6, "stroke-linecap": "round" }, armG);        // stripes
+    var aHi = sv("path", { fill: "none", stroke: "#ffe3ee", "stroke-opacity": .5, "stroke-linecap": "round" }, armG);         // rim light
+    var aFurD = sv("path", { fill: "none", stroke: "#5c1236", "stroke-opacity": .55, "stroke-linecap": "round" }, armG);      // hair, dark
+    var aFurL = sv("path", { fill: "none", stroke: "#ffc1d6", "stroke-opacity": .5, "stroke-linecap": "round" }, armG);       // hair, light
     var aHand = sv("g", {}, armG);
     var fingers = [];
-    for (var fi = 0; fi < 3; fi++) {
-      fingers.push({
-        out: sv("path", { fill: "none", stroke: DARK, "stroke-linecap": "round", "stroke-linejoin": "round" }, aHand),
-        fill: sv("path", { fill: "none", stroke: "#7cf33b", "stroke-linecap": "round", "stroke-linejoin": "round" }, aHand)
-      });
+    for (var fi = 0; fi < 5; fi++) {
+      var fo = [0, 1, 2].map(function () { return sv("path", { fill: "none", stroke: DARK, "stroke-linecap": "round", "stroke-linejoin": "round" }, aHand); });
+      var ff = [0, 1, 2].map(function () { return sv("path", { fill: "none", stroke: "#d63a7a", "stroke-linecap": "round", "stroke-linejoin": "round" }, aHand); });
+      var fh = sv("path", { fill: "none", stroke: "#ffc1d6", "stroke-opacity": .55, "stroke-linecap": "round", "stroke-linejoin": "round" }, aHand);
+      fingers.push({ out: fo, fill: ff, hi: fh });
     }
+    var claws = [0, 1, 2, 3, 4].map(function () { return sv("path", { fill: "#f6ebd6", stroke: DARK, "stroke-linejoin": "round" }, aHand); });
     var palm = sv("ellipse", { fill: "url(#mgiPalmG)", stroke: DARK }, aHand);
-    var shine = sv("ellipse", { fill: "#fff", "fill-opacity": .45 }, aHand);
-    var spots = [[8, -5, 3.4], [17, 6, 2.8], [4, 7, 2.4]].map(function (p) { return sv("circle", { fill: "#1f9a1a", "fill-opacity": .5 }, aHand); });
+    var palmFur = sv("path", { fill: "none", stroke: "#ffc1d6", "stroke-opacity": .5, "stroke-linecap": "round" }, aHand);
+    var shine = sv("ellipse", { fill: "#fff", "fill-opacity": .22 }, aHand);
+    var FW = [9.5, 10.8, 11.2, 10.4, 8.6];            // finger widths: thumb, index, middle, ring, little
+    var FT = [1, .86, .7];                           // taper along the three segments
     function sizeArm() {
-      var fw = [10, 11.5, 10];
-      for (var i = 0; i < 3; i++) {
-        fingers[i].out.setAttribute("stroke-width", ((fw[i] + 4.2) * u).toFixed(2));
-        fingers[i].fill.setAttribute("stroke-width", (fw[i] * u).toFixed(2));
+      for (var i = 0; i < 5; i++) {
+        for (var q = 0; q < 3; q++) {
+          fingers[i].out[q].setAttribute("stroke-width", ((FW[i] * FT[q] + 4) * u).toFixed(2));
+          fingers[i].fill[q].setAttribute("stroke-width", (FW[i] * FT[q] * u).toFixed(2));
+        }
+        fingers[i].hi.setAttribute("stroke-width", (FW[i] * .22 * u).toFixed(2));
+        claws[i].setAttribute("stroke-width", (1.7 * u).toFixed(2));
       }
-      palm.setAttribute("cx", 13 * u); palm.setAttribute("cy", 0);
-      palm.setAttribute("rx", 21 * u); palm.setAttribute("ry", 18 * u);
+      palm.setAttribute("cx", 9 * u); palm.setAttribute("cy", 0);
+      palm.setAttribute("rx", 15 * u); palm.setAttribute("ry", 13 * u);
       palm.setAttribute("stroke-width", (3.2 * u).toFixed(2));
-      shine.setAttribute("cx", 8 * u); shine.setAttribute("cy", -8 * u);
-      shine.setAttribute("rx", 8 * u); shine.setAttribute("ry", 3.6 * u);
-      shine.setAttribute("transform", "rotate(-20 " + 8 * u + " " + -8 * u + ")");
-      [[8, -1, 3.4], [18, 7, 2.8], [3, 8, 2.4]].forEach(function (p, i) {
-        spots[i].setAttribute("cx", p[0] * u); spots[i].setAttribute("cy", p[1] * u); spots[i].setAttribute("r", p[2] * u);
-      });
-      aBody.setAttribute("stroke-width", (3.2 * u).toFixed(2));
-      aHi.setAttribute("stroke-width", (3.4 * u).toFixed(2));
+      shine.setAttribute("cx", 5 * u); shine.setAttribute("cy", -6 * u);
+      shine.setAttribute("rx", 6 * u); shine.setAttribute("ry", 2.6 * u);
+      shine.setAttribute("transform", "rotate(-20 " + 5 * u + " " + -6 * u + ")");
+      var pf = "";
+      for (var h = 0; h < 14; h++) { var a = h / 14 * Math.PI * 2, rr = 15 * u; pf += "M" + (9 * u + Math.cos(a) * rr).toFixed(1) + " " + (Math.sin(a) * rr * .87).toFixed(1) + "l" + (Math.cos(a) * 3 * u).toFixed(1) + " " + (Math.sin(a) * 3 * u).toFixed(1); }
+      palmFur.setAttribute("d", pf); palmFur.setAttribute("stroke-width", (1.5 * u).toFixed(2));
+      aBody.setAttribute("stroke-width", (3 * u).toFixed(2));
+      aHi.setAttribute("stroke-width", (3.2 * u).toFixed(2));
+      aSh.setAttribute("stroke-width", (8 * u).toFixed(2));
+      aStr.setAttribute("stroke-width", (9 * u).toFixed(2));
+      aFurD.setAttribute("stroke-width", (1.5 * u).toFixed(2));
+      aFurL.setAttribute("stroke-width", (1.3 * u).toFixed(2));
+      aBody.setAttribute("stroke-linejoin", "round");
     }
     // hand pose helpers
     function openHand(w) { return { curl: 0, wiggle: w === undefined ? 1 : w, spread: .5 }; }
-    function pointUp(mid) { return { ang: -Math.PI / 2, fing: [.95, mid || 0, .95], spread: .22, wiggle: .5 }; }
 
     /* Puts the contact point (fingertip) at (tx,ty). o: ang | tilt | curl | fing[3] | spread | wiggle. Returns the hand angle. */
     function setHand(tx, ty, o) {
       o = o || {};
       A.tx = tx; A.ty = ty;
       var now = performance.now() / 1000, i;
-      var wig = o.wiggle === undefined ? 0 : o.wiggle, base = o.curl === undefined ? 0 : o.curl, cs = [0, 0, 0];
-      for (i = 0; i < 3; i++) cs[i] = clamp((o.fing ? o.fing[i] : base) + wig * .13 * Math.sin(now * 7 + i * 1.9), 0, 1);
+      var wig = o.wiggle === undefined ? 0 : o.wiggle, base = o.curl === undefined ? 0 : o.curl, cs = [0, 0, 0, 0, 0];
+      for (i = 0; i < 5; i++) cs[i] = clamp(base + wig * .13 * Math.sin(now * 7 + i * 1.7), 0, 1);
       var ang = o.ang !== undefined ? o.ang : Math.atan2(ty - A.Sy, tx - A.Sx) + (o.tilt || 0);
       var ca = Math.cos(ang), sa = Math.sin(ang);
-      var Lf = [24 * u, 31 * u, 24 * u], ext = 0;
-      for (i = 0; i < 3; i++) ext = Math.max(ext, Lf[i] * (1 - .5 * cs[i]));
-      var dist = 28 * u + ext + 5.5 * u;
+      var Lf = [27 * u, 37 * u, 43 * u, 39 * u, 30 * u], ext = 0;
+      for (i = 1; i < 5; i++) ext = Math.max(ext, Lf[i] * (1 - .5 * cs[i]));
+      var dist = 22 * u + ext + 5.5 * u;
       var wx = tx - ca * dist, wy = ty - sa * dist;
       // arm body: a cubic from the shoulder to the wrist that arrives along the hand direction
       var dx = wx - A.Sx, dy = wy - A.Sy, d = Math.hypot(dx, dy) || 1;
       var nx = dy / d, ny = -dx / d, bul = Math.min(d * .14, 120 * u) * (o.bulge === undefined ? 1 : o.bulge);
       var p0x = A.Sx, p0y = A.Sy, p1x = A.Sx + dx * .33 + nx * bul, p1y = A.Sy + dy * .33 + ny * bul;
       var p2x = wx - ca * d * .28, p2y = wy - sa * d * .28, p3x = wx, p3y = wy;
-      var N = 22, wS = 34 * u, wW = 15 * u, ph = now * 3, Ls = [], Rs = [], Hs = [];
+      var N = 34, wS = 34 * u, wW = 15 * u, ph = now * 3, Ls = [], Rs = [], Hs = [], Sh = [], St = [], FD = "", FL = "", f5 = function (v) { return v.toFixed(1); };
       for (var k = 0; k <= N; k++) {
         var q = k / N, m = 1 - q;
         var px = m * m * m * p0x + 3 * m * m * q * p1x + 3 * m * q * q * p2x + q * q * q * p3x;
         var py = m * m * m * p0y + 3 * m * m * q * p1y + 3 * m * q * q * p2y + q * q * q * p3y;
         var tx2 = 3 * m * m * (p1x - p0x) + 6 * m * q * (p2x - p1x) + 3 * q * q * (p3x - p2x);
         var ty2 = 3 * m * m * (p1y - p0y) + 6 * m * q * (p2y - p1y) + 3 * q * q * (p3y - p2y);
-        var tl = Math.hypot(tx2, ty2) || 1, qx = -ty2 / tl, qy = tx2 / tl;
-        var w = lerp(wS, wW, Math.pow(q, .75)) * (1 + .07 * Math.sin(q * 9 + ph));
-        Ls.push((px + qx * w / 2).toFixed(1) + " " + (py + qy * w / 2).toFixed(1));
-        Rs.push((px - qx * w / 2).toFixed(1) + " " + (py - qy * w / 2).toFixed(1));
-        if (k > 0 && k < N - 1) Hs.push((px + qx * w * .27).toFixed(1) + " " + (py + qy * w * .27).toFixed(1));
+        var tl = Math.hypot(tx2, ty2) || 1, qx = -ty2 / tl, qy = tx2 / tl, ux = tx2 / tl, uy = ty2 / tl;
+        var w0 = lerp(wS, wW, Math.pow(q, .75)) * (1 + .07 * Math.sin(q * 9 + ph));
+        var w = w0 * ((k & 1) ? 1.1 : .94);                         // fur: the edge is a little ragged
+        Ls.push(f5(px + qx * w / 2) + " " + f5(py + qy * w / 2));
+        Rs.push(f5(px - qx * w / 2) + " " + f5(py - qy * w / 2));
+        var up = qy <= 0 ? 1 : -1;                                   // light comes from above
+        if (k > 0 && k < N - 1) {
+          Hs.push(f5(px + up * qx * w0 * .27) + " " + f5(py + up * qy * w0 * .27));
+          Sh.push(f5(px - up * qx * w0 * .3) + " " + f5(py - up * qy * w0 * .3));
+        }
+        if (k >= 4 && k <= N - 4 && k % 4 === 0) St.push("M" + f5(px + qx * w0 * .4) + " " + f5(py + qy * w0 * .4) + "L" + f5(px - qx * w0 * .4) + " " + f5(py - qy * w0 * .38));
+        // hair: short strokes lying toward the hand, along both edges and over the surface
+        if (k > 0 && k < N) {
+          var hl = 8 * u;
+          for (var side = -1; side <= 1; side += 2) {
+            var ex = px + qx * side * w0 * .5, ey = py + qy * side * w0 * .5, seg = "M" + f5(ex) + " " + f5(ey) + "l" + f5(ux * hl + qx * side * 3.2 * u) + " " + f5(uy * hl + qy * side * 3.2 * u);
+            if (((k + (side > 0 ? 1 : 0)) & 1) === 0) FD += seg; else FL += seg;
+          }
+          var offs = [-.36, -.18, 0, .18, .36];
+          for (var oi = 0; oi < 5; oi++) {
+            var ix = px + qx * w0 * offs[oi], iy = py + qy * w0 * offs[oi], sg2 = "M" + f5(ix) + " " + f5(iy) + "l" + f5(ux * hl * .9) + " " + f5(uy * hl * .9);
+            if (((k + oi) & 1) === 0) FD += sg2; else FL += sg2;
+          }
+        }
       }
       aBody.setAttribute("d", "M" + Ls.join("L") + "L" + Rs.reverse().join("L") + "Z");
       aHi.setAttribute("d", "M" + Hs.join("L"));
+      aSh.setAttribute("d", "M" + Sh.join("L"));
+      aStr.setAttribute("d", St.join(""));
+      aFurD.setAttribute("d", FD); aFurL.setAttribute("d", FL);
       aHand.setAttribute("transform", "translate(" + wx.toFixed(1) + " " + wy.toFixed(1) + ") rotate(" + (ang * 180 / Math.PI).toFixed(1) + ")");
-      // three fingers
-      var th = [-.62, 0, .62], sg = [1, 1, -1], spr = o.spread === undefined ? .45 : o.spread;
-      for (i = 0; i < 3; i++) {
-        var phi = th[i] * (.5 + 1.1 * spr), bx = 13 * u + 15 * u * Math.cos(th[i]), by = 15 * u * Math.sin(th[i]);
-        var l1 = Lf[i] * .42, l2 = Lf[i] * .34, l3 = Lf[i] * .24, bend = cs[i] * sg[i];
+      // five fingers: thumb, index, middle, ring, little. They bend toward the middle line, so the hand can pinch a letter.
+      var th = [-1, -.52, -.14, .26, .66], sg = [1, 1, 1, -1, -1], spr = o.spread === undefined ? .45 : o.spread;
+      for (i = 0; i < 5; i++) {
+        var phi = th[i] * (.3 + .7 * spr), bx = 9 * u + 13 * u * Math.cos(th[i]) - (i === 0 ? 6 * u : 0), by = 11.5 * u * Math.sin(th[i]);
+        var l1 = Lf[i] * .42, l2 = Lf[i] * .34, l3 = Lf[i] * .24, bend = cs[i] * sg[i] * (i === 0 ? .8 : 1);
         var x1 = bx + Math.cos(phi) * l1, y1 = by + Math.sin(phi) * l1;
         var a2 = phi + bend, x2 = x1 + Math.cos(a2) * l2, y2 = y1 + Math.sin(a2) * l2;
         var a3 = a2 + bend, x3 = x2 + Math.cos(a3) * l3, y3 = y2 + Math.sin(a3) * l3;
-        var dd = "M" + bx.toFixed(1) + " " + by.toFixed(1) + "L" + x1.toFixed(1) + " " + y1.toFixed(1) + "L" + x2.toFixed(1) + " " + y2.toFixed(1) + "L" + x3.toFixed(1) + " " + y3.toFixed(1);
-        fingers[i].out.setAttribute("d", dd);
-        fingers[i].fill.setAttribute("d", dd);
+        var P = [[bx, by, x1, y1], [x1, y1, x2, y2], [x2, y2, x3, y3]];
+        for (var qq = 0; qq < 3; qq++) {
+          var dd = "M" + f5(P[qq][0]) + " " + f5(P[qq][1]) + "L" + f5(P[qq][2]) + " " + f5(P[qq][3]);
+          fingers[i].out[qq].setAttribute("d", dd); fingers[i].fill[qq].setAttribute("d", dd);
+        }
+        var ho = FW[i] * .2 * u, hx = Math.sin(phi) * ho, hy = -Math.cos(phi) * ho;
+        fingers[i].hi.setAttribute("d", "M" + f5(bx + hx) + " " + f5(by + hy) + "L" + f5(x1 + hx) + " " + f5(y1 + hy) + "L" + f5(x2 + hx) + " " + f5(y2 + hy));
+        var cd = a3, cl = 13 * u, cw = 3.6 * u, cnx = -Math.sin(cd), cny = Math.cos(cd), cv = .28 * sg[i];
+        claws[i].setAttribute("d", "M" + f5(x3 + cnx * cw) + " " + f5(y3 + cny * cw) + "Q" + f5(x3 + Math.cos(cd) * cl * .7 + cnx * cw * .3) + " " + f5(y3 + Math.sin(cd) * cl * .7 + cny * cw * .3) + " " + f5(x3 + Math.cos(cd + cv) * cl) + " " + f5(y3 + Math.sin(cd + cv) * cl) + "L" + f5(x3 - cnx * cw) + " " + f5(y3 - cny * cw) + "Z");
       }
       armG.setAttribute("opacity", 1);
       return ang;
@@ -470,9 +512,6 @@
         lpct.textContent = Math.round(p * 100);
         WS.op = E.io(clamp(el_ / 900, 0, 1)) * .62;               // the controller fades in, lit only around its M
         WS.z = Z0 * lerp(1.1, 1, E.out(clamp(el_ / 1500, 0, 1))); WS.r = R0; drawWall();
-        var bob = Math.sin(el_ / 430) * 4 * u;
-        var rise = E.out(clamp(el_ / 1000, 0, 1));
-        setHand(Mx, lerp(H + 90 * u, restTipY + bob, rise), pointUp(0));
         if (p >= .995 && tp >= 1 && done) break;
       }
       lpct.textContent = "100";
@@ -485,7 +524,6 @@
         await frame();
         var nw = performance.now();
         WS.op = .62 + .05 * Math.sin(nw / 520); drawWall();
-        setHand(Mx, restTipY + Math.sin(nw / 430) * 4 * u, pointUp(0));
         if (!hinted && nw - tw0 > 2000) { hinted = true; hint.classList.add("on"); }
       }
       hint.classList.remove("on");
@@ -495,9 +533,9 @@
       var y0 = restTipY;
       mw.style.pointerEvents = "none";
       bg(ripple(rip1, plX, plY, 0)); bg(ripple(rip2, plX, plY, 130));
-      await tween(170, function (e) { WS.k = 1 - .05 * e; drawWall(); setHand(Mx, y0 + 6 * e, pointUp(.2 * e)); }, E.out);
+      await tween(170, function (e) { WS.k = 1 - .05 * e; drawWall(); }, E.out);
       await sleep(90);
-      await tween(330, function (e) { WS.k = .95 + .05 * e; drawWall(); setHand(Mx, y0 + 6 * (1 - e), pointUp(.2 * (1 - e))); }, E.back);
+      await tween(330, function (e) { WS.k = .95 + .05 * e; drawWall(); }, E.back);
       WS.k = 1; drawWall();
       mw.style.visibility = "hidden";
     }
@@ -541,8 +579,6 @@
 
     async function armEntry() {
       await sleep(60);
-      var sy = H + 90 * u;
-      await tween(380, function (e) { setHand(Mx, lerp(restTipY, sy, e), pointUp(0)); }, E.ein);     // the peeking hand sinks away
       hideArm();
       setShoulder("left");
       var hidX = -(TIPMAX * u + 60), readyX = W * .26, readyY = floorY - fs * .9;
