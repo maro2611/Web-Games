@@ -168,7 +168,7 @@
     var armSvg = sv("svg", { "class": "mgi-arm", "aria-hidden": "true" }, stage);
     var nameEl = el("div", "mgi-name", stage);
     var pill = el("div", "mgi-pill", stage);
-    pill.textContent = "ألعاب أندرويد ببلاش";
+    pill.textContent = "Free Android Games"; pill.style.direction = "ltr";
     var fxSvg = sv("svg", { "class": "mgi-fx", "aria-hidden": "true" }, stage);
     var rip1 = el("div", "mgi-rip", stage), rip2 = el("div", "mgi-rip", stage);
     var mw = el("div", "mgi-mw", stage);
