@@ -134,7 +134,8 @@
     var meta = h("ul", { class: "meta" }, [
       h("li", { text: g.platform }),
       v.version ? h("li", null, ["إصدار ", ltr(v.version)]) : null,
-      v.size ? h("li", null, [ltr(v.size)]) : null
+      v.size ? h("li", null, [ltr(v.size)]) : null,
+      statEl("li", g.slug, "mg-stat")
     ]);
     return h("article", { class: "card" }, [
       coverEl(g),
@@ -293,6 +294,7 @@
       if (go.hasAttribute("disabled")) return;
       if (!v.url) { go.textContent = "رابط التحميل لسه مش متضاف"; return; }
       if (window.MG_PUSH) window.MG_PUSH.downloaded(g.slug);
+      countDownload(g, v);
       var a = h("a", { href: v.url, rel: "noopener", download: "" });
       document.body.appendChild(a);
       a.click();
@@ -360,6 +362,8 @@
       h("p", { class: "num" }, [ltr(v.version || "-")]),
       h("p", { class: "muted" }, [v.date ? fmtDate(v.date) : "", v.size ? " · " : "", v.size ? ltr(v.size) : null]),
       v.changelog ? h("p", { text: v.changelog }) : null,
+      statEl("p", g.slug, "mg-stat-big"),
+      ratingWidget(g),
       h("button", { class: "btn block", type: "button", text: "تحميل", onclick: function () { openDownload(g, v); } })
     ]);
     var sb = supportButton();
@@ -438,6 +442,72 @@
   }
   window.MG = { h: h, $: $, ltr: ltr, fmtDate: fmtDate, fbReady: fbReady, loadFirebase: loadFirebase, openModal: openModal };
 
+  /* ---------- download counter + ratings (Firestore "stats/<game>": downloads, ratingSum, ratingCount) ---------- */
+  var STATS = {}, STATS_KEY = "mg-stats-v1";
+  try { STATS = JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch (e) { STATS = {}; }
+  function saveStats() { try { localStorage.setItem(STATS_KEY, JSON.stringify(STATS)); } catch (e) {} }
+  function shortNum(n) { n = +n || 0; return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(".0", "") + "K" : String(n); }
+  function statText(slug, big) {
+    var s = STATS[slug] || {}, n = +s.downloads || 0, c = +s.ratingCount || 0;
+    var txt = "⬇ " + shortNum(n);
+    if (c > 0) txt += "  ★ " + (s.ratingSum / c).toFixed(1) + (big ? " (" + c + " تقييم)" : "");
+    return txt;
+  }
+  function fillStat(el) {
+    var slug = el.getAttribute("data-stat"), big = el.className.indexOf("big") >= 0;
+    if (!STATS[slug] && !big) { el.hidden = true; return; }
+    el.hidden = false; el.textContent = statText(slug, big);
+  }
+  function statEl(tag, slug, cls) { var e = h(tag, { class: cls, "data-stat": slug }); fillStat(e); return e; }
+  function refreshStats() { Array.prototype.forEach.call(document.querySelectorAll("[data-stat]"), fillStat); }
+  function statsDb() { return loadFirebase(["firestore"]).then(function (fb) { return fb; }); }
+  function fetchStats() {
+    if (!fbReady() || page === "admin") return;
+    withTimeout(statsDb().then(function (fb) { return fb.firestore().collection("stats").get(); }), 8000).then(function (snap) {
+      var m = {}; snap.forEach(function (d) { m[d.id] = d.data(); });
+      STATS = m; saveStats(); refreshStats();
+    }).catch(function () {});
+  }
+  function bumpStat(slug, kind, r) {
+    if (!fbReady()) return;
+    statsDb().then(function (fb) {
+      var fv = fb.firestore.FieldValue, ref = fb.firestore().collection("stats").doc(slug), up = {}, init = { downloads: 0, ratingSum: 0, ratingCount: 0 };
+      if (kind === "dl") { up.downloads = fv.increment(1); init.downloads = 1; }
+      else { up.ratingSum = fv.increment(r); up.ratingCount = fv.increment(1); init.ratingSum = r; init.ratingCount = 1; }
+      return ref.update(up).catch(function (e) {
+        if (e && (e.code === "not-found" || e.code === "permission-denied")) return ref.set(init);   // first count for this game
+        throw e;
+      });
+    }).then(function () {
+      var s = STATS[slug] || { downloads: 0, ratingSum: 0, ratingCount: 0 };
+      if (kind === "dl") s.downloads = (+s.downloads || 0) + 1; else { s.ratingSum = (+s.ratingSum || 0) + r; s.ratingCount = (+s.ratingCount || 0) + 1; }
+      STATS[slug] = s; saveStats(); refreshStats();
+    }).catch(function () {});
+  }
+  /* one count per device per version, so repeated clicks don't inflate the number */
+  function countDownload(g, v) {
+    var key = "mg-dl-" + g.slug + "-" + (v.version || "");
+    try { if (localStorage.getItem(key)) return; localStorage.setItem(key, "1"); } catch (e) {}
+    bumpStat(g.slug, "dl");
+  }
+  function ratingWidget(g) {
+    var key = "mg-rated-" + g.slug, mine = 0;
+    try { mine = +localStorage.getItem(key) || 0; } catch (e) {}
+    var label = h("p", { class: "muted", text: mine ? "تقييمك " + mine + " من 5. شكرًا!" : "قيّم اللعبة" });
+    var stars = [];
+    function paintStars(n) { stars.forEach(function (s, i) { s.classList.toggle("on", i < n); }); }
+    for (var i = 1; i <= 5; i++) (function (n) {
+      stars.push(h("button", { type: "button", class: "star", "aria-label": n + " من 5", text: "★", onclick: function () {
+        if (mine) return;
+        mine = n; try { localStorage.setItem(key, String(n)); } catch (e) {}
+        paintStars(n); label.textContent = "تقييمك " + n + " من 5. شكرًا!";
+        bumpStat(g.slug, "rate", n);
+      } }));
+    })(i);
+    paintStars(mine);
+    return h("div", { class: "rate" }, [label, h("div", { class: "stars", dir: "ltr" }, stars)]);
+  }
+
   /* ---------- boot ---------- */
   /* The page paints at once, never waits for Firebase:
      1) from the copy saved on this device at the last visit (no network, instant), or
@@ -496,6 +566,7 @@
     }).then(function (res) {
       paint(res[0], res[1]);
       writeCache(res[0], res[1]);
+      fetchStats();
     }).catch(function () {
       if (shown === null) document.body.appendChild(h("p", { class: "empty", text: "حصلت مشكلة في تحميل الصفحة. جرّب تحدّث." }));
     });

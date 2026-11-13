@@ -204,3 +204,13 @@ body::before { pointer-events: none; }
 @keyframes mg-glow { 0%, 100% { filter: drop-shadow(0 0 2px rgba(34,211,238,.35)); } 50% { filter: drop-shadow(0 0 9px rgba(34,211,238,.95)); } }
 .mg-ready-pop { animation: mg-pop .5s cubic-bezier(.2,1.6,.4,1); }
 @media (prefers-reduced-motion: reduce) { .mg-dots i, .mg-busy::before, .mg-ring-spin, .mg-count-pop, .mg-ready-pop { animation: none !important; } #splash.out { transition-duration: .01s; } }
+
+/* download counter + rating */
+.mg-stat { font-weight: 700; }
+.mg-stat-big { font-size: 1.05rem; font-weight: 700; color: var(--accent); margin: 0; letter-spacing: .02em; }
+.rate { display: grid; gap: 4px; margin: 6px 0; }
+.rate p { margin: 0; }
+.stars { display: flex; gap: 2px; justify-content: flex-end; direction: ltr; }
+.star { background: none; border: 0; padding: 4px 3px; font-size: 1.7rem; line-height: 1; color: rgba(255,255,255,.22); cursor: pointer; transition: transform .12s, color .15s; min-width: 36px; min-height: 40px; }
+.star.on { color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,.55); }
+.star:hover { transform: scale(1.18); }
