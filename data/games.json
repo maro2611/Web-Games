@@ -1,9 +1,8 @@
 [
   {
-    "slug": "example-game",
-    "example": true,
-    "title": "لعبة تجريبية",
-    "desc": "ده مثال بس عشان تشوف شكل الصفحة. امسح الكتلة دي وحط ألعابك الحقيقية مكانها.",
+    "slug": "habdology",
+    "title": "Habdology",
+    "desc": "لعبة أندرويد من تطوير مارسيلينو فهمي. حمّلها مباشرة وبدون إعلانات.",
     "platform": "Android",
     "wallpaper": "",
     "screenshots": [],
@@ -16,9 +15,9 @@
       {
         "version": "1.0",
         "date": "2026-11-12",
-        "size": "45 MB",
+        "size": "31.3 MB",
         "changelog": "أول إصدار.",
-        "url": ""
+        "url": "https://maro2611.github.io/Web-Games/downloads/Habdology-1.0.apk"
       }
     ]
   }
