@@ -186,6 +186,13 @@
       ]));
     }
 
+    /* site rating: real visitors' stars only */
+    main.appendChild(h("div", { class: "panel" }, [
+      h("h3", { text: "تقييم الموقع" }),
+      statEl("p", "_site", "mg-stat-big"),
+      ratingWidget({ slug: "_site" }, "الموقع")
+    ]));
+
     /* problems go to the public complaints board */
     main.appendChild(h("div", { class: "panel" }, [
       h("h3", { text: "عندك مشكلة أو اقتراح؟" }),
@@ -440,6 +447,7 @@
   function shortNum(n) { n = +n || 0; return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(".0", "") + "K" : String(n); }
   function statText(slug, big) {
     var s = STATS[slug] || {}, n = +s.downloads || 0, c = +s.ratingCount || 0;
+    if (slug === "_site") return c > 0 ? "★ " + (((+s.ratingSum || 0) + (+s.halfSum || 0) / 2) / c).toFixed(1) + " (" + c + " تقييم)" : "لسه مفيش تقييمات. كن أول واحد يقيّم";
     var txt = "⬇ " + shortNum(n);
     // total stars = whole stars saved by the first version (ratingSum) + half-star units (halfSum / 2)
     if (c > 0) txt += "  ★ " + (((+s.ratingSum || 0) + (+s.halfSum || 0) / 2) / c).toFixed(1) + (big ? " (" + c + " تقييم)" : "");
@@ -486,11 +494,11 @@
     try { if (localStorage.getItem(key)) return; localStorage.setItem(key, "1"); } catch (e) {}
     bumpStat(g.slug, "dl");
   }
-  function ratingWidget(g) {
+  function ratingWidget(g, noun) {
     var key = "mg-rated-" + g.slug, mine = 0;
     try { mine = parseFloat(localStorage.getItem(key)) || 0; } catch (e) {}
     function fmt(v) { return (v % 1 ? v.toFixed(1) : String(v)); }
-    var label = h("p", { class: "muted", text: mine ? "تقييمك " + fmt(mine) + " من 5. دوس على أي نص نجمة لو عايز تغيّره" : "قيّم اللعبة (ممكن نص نجمة)" });
+    var label = h("p", { class: "muted", text: mine ? "تقييمك " + fmt(mine) + " من 5. دوس على أي نص نجمة لو عايز تغيّره" : "قيّم " + (noun || "اللعبة") + " (ممكن نص نجمة)" });
     var fills = [];
     function paintStars(v) { fills.forEach(function (f, i) { f.style.width = (Math.max(0, Math.min(1, v - i)) * 100) + "%"; }); }
     var row = h("div", { class: "stars", dir: "ltr" });
@@ -650,6 +658,27 @@
     });
   }
 
+  /* ---------- site rating prompt: shown ~5 s after the notification question (20 s after the page opens) ---------- */
+  var sitePromptStarted = false;
+  function startSitePrompt() {
+    if (sitePromptStarted || page === "admin" || !fbReady()) return;
+    sitePromptStarted = true;
+    if (getLS("mg-rated-_site")) return;
+    var tries = 0;
+    function attempt() {
+      var snooze = +getLS("mg-site-rate-snooze") || 0;
+      if (getLS("mg-rated-_site") || (snooze && Date.now() < snooze)) return;
+      if ((document.getElementById("splash") || document.querySelector(".modal")) && tries++ < 40) { setTimeout(attempt, 3000); return; }
+      var modal = openModal([
+        h("h3", { text: "قيّم الموقع" }),
+        h("p", { class: "muted", text: "رأيك بيفرق. اختار عدد النجوم، وتقدر تدّي نص نجمة." }),
+        ratingWidget({ slug: "_site" }, "الموقع")
+      ], function () { if (!getLS("mg-rated-_site")) setLS("mg-site-rate-snooze", String(Date.now() + 7 * 86400000)); });
+      var poll = setInterval(function () { if (getLS("mg-rated-_site")) { clearInterval(poll); setTimeout(function () { modal.close(); }, 1600); } else if (!document.body.contains(modal.box)) clearInterval(poll); }, 500);
+    }
+    setTimeout(attempt, 20000);
+  }
+
   /* ---------- boot ---------- */
   /* The page paints at once, never waits for Firebase:
      1) from the copy saved on this device at the last visit (no network, instant), or
@@ -699,6 +728,7 @@
     else if (page === "admin" && window.MG_ADMIN) window.MG_ADMIN(window.MG);
     if (repaint && y) window.scrollTo(0, y);
     if (window.MG_PUSH && page !== "admin") window.MG_PUSH.init(window.MG);
+    startSitePrompt();
   }
   function start() {
     var cached = readCache();

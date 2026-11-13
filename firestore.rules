@@ -44,7 +44,7 @@ service cloud.firestore {
       allow read: if false;
     }
 
-    // Download counter and star ratings: one document per game. Ratings are 0.5 to 5 stars and are stored in
+    // Download counter and star ratings: one document per game, plus "_site" for the site rating. Ratings are 0.5 to 5 stars and are stored in
     // half-star units: halfSum (new votes) plus ratingSum (whole stars from the first version), ratingCount = number of voters.
     // Visitors may only count one download (+1), add one rating, or change their own rating; the owner can set anything.
     function statsKeys() {
@@ -63,8 +63,9 @@ service cloud.firestore {
     }
     match /stats/{gameId} {
       allow read: if true;
-      allow create: if gameId.matches('^[a-z0-9-]+$') && gameId.size() <= 80
-        && exists(/databases/$(database)/documents/games/$(gameId))
+      allow create: if (gameId == '_site'
+          || (gameId.matches('^[a-z0-9-]+$') && gameId.size() <= 80
+              && exists(/databases/$(database)/documents/games/$(gameId))))
         && statsKeys()
         && request.resource.data.ratingSum == 0
         && ((request.resource.data.downloads == 1 && request.resource.data.ratingCount == 0 && request.resource.data.get('halfSum', 0) == 0)
