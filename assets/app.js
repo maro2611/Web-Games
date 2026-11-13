@@ -760,7 +760,11 @@
     if (cached && canPaintEarly(cached.games)) paint(cached.site, cached.games);
     Promise.all([load("data/site.json"), load("data/games.json")]).then(function (st) {
       if (!cached && canPaintEarly(st[1])) paint(st[0], st[1]);
-      return remoteGames().then(function (games) { return [st[0], games]; }, function () { return st; });
+      return remoteGames().then(function (games) {
+        /* games that only live in data/games.json stay visible until they are imported to Firestore from the dashboard */
+        var have = {}; games.forEach(function (x) { have[x.slug] = 1; });
+        return [st[0], games.concat(st[1].filter(function (x) { return !have[x.slug] && !x.hidden; }))];
+      }, function () { return st; });
     }).then(function (res) {
       paint(res[0], res[1]);
       writeCache(res[0], res[1]);

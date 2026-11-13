@@ -337,6 +337,7 @@ window.MG_ADMIN = function (MG) {
       box.appendChild(msg);
       box.appendChild(formBox);
       box.appendChild(h("h2", { text: "الألعاب" }));
+      box.appendChild(importBox);
       box.appendChild(list);
 
       /* ---- statistics: downloads and ratings per game, and the site rating ---- */
@@ -431,11 +432,29 @@ window.MG_ADMIN = function (MG) {
       box.appendChild(cList);
       loadComplaints();
 
+      var importBox = h("div", { class: "stack" });
+      function showImport() {
+        importBox.textContent = "";
+        fetch("data/games.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (file) {
+          var have = {}; games.forEach(function (x) { have[x.slug] = 1; });
+          var missing = file.filter(function (x) { return !have[x.slug]; });
+          if (!missing.length) return;
+          importBox.appendChild(h("div", { class: "panel" }, [
+            h("h3", { text: "ألعاب لسه مش في قاعدة البيانات" }),
+            h("p", { class: "muted", text: "الألعاب دي موجودة في ملفات الموقع بس (" + missing.map(function (x) { return x.title; }).join("، ") + "). استوردها عشان تظهر هنا وتقدر تعدّلها وتحط لها صورة." }),
+            h("button", { class: "btn", type: "button", text: "استيراد الألعاب دي", onclick: function () {
+              var b = db.batch();
+              missing.forEach(function (x) { var o = Object.assign({}, x); delete o.slug; delete o.example; if (typeof o.hidden !== "boolean") o.hidden = false; b.set(db.collection("games").doc(x.slug), o); });
+              b.commit().then(function () { say("اتستوردت. اضغط تعديل على اللعبة عشان تحط الصورة."); refresh(); }, function () { say("الاستيراد فشل. اتأكد من قواعد Firestore."); });
+            } })
+          ]));
+        }).catch(function () {});
+      }
       function refresh() {
         return db.collection("games").get().then(function (snap) {
           games = snap.docs.map(function (d) { var o = d.data(); o.slug = d.id; return o; })
             .sort(function (a, b) { return String(b.added).localeCompare(String(a.added)); });
-          draw();
+          draw(); showImport();
         }).catch(function () { say("ماقدرتش أحمّل الألعاب. اتأكد من قواعد Firestore."); });
       }
 
