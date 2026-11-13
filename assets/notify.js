@@ -214,7 +214,7 @@
       if (started) return; started = true;
       registerSW();
       installBar(MG);
-      setTimeout(function () { promptNotifications(MG); }, 4000);
+      setTimeout(function () { promptNotifications(MG); }, 15000);
     },
     settingsPanel: settingsPanel,
     downloaded: downloaded
