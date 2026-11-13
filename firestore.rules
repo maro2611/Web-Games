@@ -44,37 +44,48 @@ service cloud.firestore {
       allow read: if false;
     }
 
-    // Download counter and star ratings: one document per game. Visitors may only count one download
-    // (+1), add one rating (1 to 5 stars) or change their own rating; only the owner can set other values or reset.
+    // Download counter and star ratings: one document per game. Ratings are 0.5 to 5 stars and are stored in
+    // half-star units: halfSum (new votes) plus ratingSum (whole stars from the first version), ratingCount = number of voters.
+    // Visitors may only count one download (+1), add one rating, or change their own rating; the owner can set anything.
     function statsKeys() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['downloads', 'ratingSum', 'ratingCount']) && d.keys().hasAll(['downloads', 'ratingSum', 'ratingCount'])
-        && d.downloads is int && d.ratingSum is int && d.ratingCount is int;
+      return d.keys().hasOnly(['downloads', 'ratingSum', 'ratingCount', 'halfSum'])
+        && d.keys().hasAll(['downloads', 'ratingSum', 'ratingCount'])
+        && d.downloads is int && d.ratingSum is int && d.ratingCount is int && d.get('halfSum', 0) is int;
+    }
+    function halfDelta() {
+      return request.resource.data.get('halfSum', 0) - resource.data.get('halfSum', 0);
+    }
+    function totalOk() {      // every voter gave between 0.5 and 5 stars
+      let d = request.resource.data;
+      let total = 2 * d.ratingSum + d.get('halfSum', 0);
+      return total >= d.ratingCount && total <= 10 * d.ratingCount;
     }
     match /stats/{gameId} {
       allow read: if true;
       allow create: if gameId.matches('^[a-z0-9-]+$') && gameId.size() <= 80
         && exists(/databases/$(database)/documents/games/$(gameId))
         && statsKeys()
-        && ((request.resource.data.downloads == 1 && request.resource.data.ratingSum == 0 && request.resource.data.ratingCount == 0)
+        && request.resource.data.ratingSum == 0
+        && ((request.resource.data.downloads == 1 && request.resource.data.ratingCount == 0 && request.resource.data.get('halfSum', 0) == 0)
          || (request.resource.data.downloads == 0 && request.resource.data.ratingCount == 1
-             && request.resource.data.ratingSum >= 1 && request.resource.data.ratingSum <= 5));
+             && request.resource.data.get('halfSum', 0) >= 1 && request.resource.data.get('halfSum', 0) <= 10));
       allow update: if isOwner()
-        || (statsKeys()
-          && ((request.resource.data.downloads == resource.data.downloads + 1
-               && request.resource.data.ratingSum == resource.data.ratingSum
-               && request.resource.data.ratingCount == resource.data.ratingCount)
-           || (request.resource.data.downloads == resource.data.downloads
-               && request.resource.data.ratingCount == resource.data.ratingCount + 1
-               && request.resource.data.ratingSum >= resource.data.ratingSum + 1
-               && request.resource.data.ratingSum <= resource.data.ratingSum + 5)
-           || (request.resource.data.downloads == resource.data.downloads
-               && request.resource.data.ratingCount == resource.data.ratingCount
-               && request.resource.data.ratingSum != resource.data.ratingSum
-               && request.resource.data.ratingSum >= resource.data.ratingSum - 4
-               && request.resource.data.ratingSum <= resource.data.ratingSum + 4
-               && request.resource.data.ratingSum >= request.resource.data.ratingCount
-               && request.resource.data.ratingSum <= request.resource.data.ratingCount * 5)));
+        || (statsKeys() && totalOk()
+          && request.resource.data.ratingSum == resource.data.ratingSum
+          && (
+            // one more download
+            (request.resource.data.downloads == resource.data.downloads + 1
+             && request.resource.data.ratingCount == resource.data.ratingCount
+             && halfDelta() == 0)
+            // a new rating, 0.5 to 5 stars
+            || (request.resource.data.downloads == resource.data.downloads
+             && request.resource.data.ratingCount == resource.data.ratingCount + 1
+             && halfDelta() >= 1 && halfDelta() <= 10)
+            // a visitor changing their own rating
+            || (request.resource.data.downloads == resource.data.downloads
+             && request.resource.data.ratingCount == resource.data.ratingCount
+             && halfDelta() != 0 && halfDelta() >= -9 && halfDelta() <= 9)));
       allow delete: if isOwner();
     }
 

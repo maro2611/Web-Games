@@ -211,6 +211,11 @@ body::before { pointer-events: none; }
 .rate { display: grid; gap: 4px; margin: 6px 0; }
 .rate p { margin: 0; }
 .stars { display: flex; gap: 2px; justify-content: flex-end; direction: ltr; }
-.star { background: none; border: 0; padding: 4px 3px; font-size: 1.7rem; line-height: 1; color: rgba(255,255,255,.22); cursor: pointer; transition: transform .12s, color .15s; min-width: 36px; min-height: 40px; }
-.star.on { color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,.55); }
-.star:hover { transform: scale(1.18); }
+.star { position: relative; display: inline-block; width: 38px; height: 40px; font-size: 1.9rem; line-height: 40px; text-align: center; }
+.star .base, .star .fill { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.star .base { color: rgba(255,255,255,.2); }
+.star .fill { color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,.55); overflow: hidden; white-space: nowrap; width: 0; text-align: left; padding-left: 0; display: block; }
+.star .fill { text-indent: calc((38px - 1em) / 2); }
+.star .half { position: absolute; top: 0; bottom: 0; width: 50%; background: none; border: 0; padding: 0; cursor: pointer; }
+.star .half.l { left: 0; }
+.star .half.r { right: 0; }

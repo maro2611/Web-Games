@@ -450,7 +450,8 @@
   function statText(slug, big) {
     var s = STATS[slug] || {}, n = +s.downloads || 0, c = +s.ratingCount || 0;
     var txt = "⬇ " + shortNum(n);
-    if (c > 0) txt += "  ★ " + (s.ratingSum / c).toFixed(1) + (big ? " (" + c + " تقييم)" : "");
+    // total stars = whole stars saved by the first version (ratingSum) + half-star units (halfSum / 2)
+    if (c > 0) txt += "  ★ " + (((+s.ratingSum || 0) + (+s.halfSum || 0) / 2) / c).toFixed(1) + (big ? " (" + c + " تقييم)" : "");
     return txt;
   }
   function fillStat(el) {
@@ -470,20 +471,21 @@
   }
   function bumpStat(slug, kind, r, old) {
     if (!fbReady()) return;
+    var hv = Math.round((r || 0) * 2), oh = Math.round((old || 0) * 2);       // ratings are kept in half-star units
     statsDb().then(function (fb) {
-      var fv = fb.firestore.FieldValue, ref = fb.firestore().collection("stats").doc(slug), up = {}, init = { downloads: 0, ratingSum: 0, ratingCount: 0 };
+      var fv = fb.firestore.FieldValue, ref = fb.firestore().collection("stats").doc(slug), up = {}, init = { downloads: 0, ratingSum: 0, ratingCount: 0, halfSum: 0 };
       if (kind === "dl") { up.downloads = fv.increment(1); init.downloads = 1; }
-      else if (old) { up.ratingSum = fv.increment(r - old); init.ratingSum = r; init.ratingCount = 1; }   // the visitor changed their stars
-      else { up.ratingSum = fv.increment(r); up.ratingCount = fv.increment(1); init.ratingSum = r; init.ratingCount = 1; }
+      else if (old) { up.halfSum = fv.increment(hv - oh); init.halfSum = hv; init.ratingCount = 1; }   // the visitor changed their stars
+      else { up.halfSum = fv.increment(hv); up.ratingCount = fv.increment(1); init.halfSum = hv; init.ratingCount = 1; }
       return ref.update(up).catch(function (e) {
         if (e && (e.code === "not-found" || e.code === "permission-denied")) return ref.set(init);   // first count for this game
         throw e;
       });
     }).then(function () {
-      var s = STATS[slug] || { downloads: 0, ratingSum: 0, ratingCount: 0 };
+      var s = STATS[slug] || { downloads: 0, ratingSum: 0, ratingCount: 0, halfSum: 0 };
       if (kind === "dl") s.downloads = (+s.downloads || 0) + 1;
-      else if (old) s.ratingSum = (+s.ratingSum || 0) + r - old;
-      else { s.ratingSum = (+s.ratingSum || 0) + r; s.ratingCount = (+s.ratingCount || 0) + 1; }
+      else if (old) s.halfSum = (+s.halfSum || 0) + hv - oh;
+      else { s.halfSum = (+s.halfSum || 0) + hv; s.ratingCount = (+s.ratingCount || 0) + 1; }
       STATS[slug] = s; saveStats(); refreshStats();
     }).catch(function () {});
   }
@@ -495,21 +497,30 @@
   }
   function ratingWidget(g) {
     var key = "mg-rated-" + g.slug, mine = 0;
-    try { mine = +localStorage.getItem(key) || 0; } catch (e) {}
-    var label = h("p", { class: "muted", text: mine ? "تقييمك " + mine + " من 5. دوس على نجمة تانية لو عايز تغيّره" : "قيّم اللعبة" });
-    var stars = [];
-    function paintStars(n) { stars.forEach(function (s, i) { s.classList.toggle("on", i < n); }); }
+    try { mine = parseFloat(localStorage.getItem(key)) || 0; } catch (e) {}
+    function fmt(v) { return (v % 1 ? v.toFixed(1) : String(v)); }
+    var label = h("p", { class: "muted", text: mine ? "تقييمك " + fmt(mine) + " من 5. دوس على أي نص نجمة لو عايز تغيّره" : "قيّم اللعبة (ممكن نص نجمة)" });
+    var fills = [];
+    function paintStars(v) { fills.forEach(function (f, i) { f.style.width = (Math.max(0, Math.min(1, v - i)) * 100) + "%"; }); }
+    var row = h("div", { class: "stars", dir: "ltr" });
+    function pick(v) {
+      if (mine === v) return;
+      var old = mine;
+      mine = v; try { localStorage.setItem(key, String(v)); } catch (e) {}
+      paintStars(v); label.textContent = (old ? "اتغيّر تقييمك لـ " : "شكرًا! تقييمك ") + fmt(v) + " من 5";
+      bumpStat(g.slug, "rate", v, old);
+    }
     for (var i = 1; i <= 5; i++) (function (n) {
-      stars.push(h("button", { type: "button", class: "star", "aria-label": n + " من 5", text: "★", onclick: function () {
-        if (mine === n) return;
-        var old = mine;
-        mine = n; try { localStorage.setItem(key, String(n)); } catch (e) {}
-        paintStars(n); label.textContent = (old ? "اتغيّر تقييمك لـ " : "شكرًا! تقييمك ") + n + " من 5";
-        bumpStat(g.slug, "rate", n, old);
-      } }));
+      var fill = h("span", { class: "fill", text: "★" });
+      fills.push(fill);
+      var half = n - .5;
+      var lb = h("button", { type: "button", class: "half l", "aria-label": fmt(half) + " من 5", onclick: function () { pick(half); }, onmouseenter: function () { paintStars(half); } });
+      var rb = h("button", { type: "button", class: "half r", "aria-label": n + " من 5", onclick: function () { pick(n); }, onmouseenter: function () { paintStars(n); } });
+      row.appendChild(h("span", { class: "star" }, [h("span", { class: "base", text: "★" }), fill, lb, rb]));
     })(i);
+    row.addEventListener("mouseleave", function () { paintStars(mine); });
     paintStars(mine);
-    return h("div", { class: "rate" }, [label, h("div", { class: "stars", dir: "ltr" }, stars)]);
+    return h("div", { class: "rate" }, [label, row]);
   }
 
   /* ---------- boot ---------- */
