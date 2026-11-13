@@ -310,6 +310,70 @@ window.MG_ADMIN = function (MG) {
       box.appendChild(h("h2", { text: "الألعاب" }));
       box.appendChild(list);
 
+      /* ---- complaints moderation: read everything, delete any complaint or comment ---- */
+      var FV = window.firebase.firestore.FieldValue;
+      var cList = h("div", { class: "stack" });
+      function when(ts) { try { return (ts && ts.toDate ? ts.toDate() : new Date()).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } }
+      function deleteRefs(refs) {              // batches of 400
+        if (!refs.length) return Promise.resolve();
+        var b = db.batch(); refs.slice(0, 400).forEach(function (r) { b.delete(r); });
+        return b.commit().then(function () { return deleteRefs(refs.slice(400)); });
+      }
+      function loadComplaints() {
+        cList.textContent = "";
+        cList.appendChild(h("p", { class: "muted mg-busy", text: "بحمّل الشكاوى..." }));
+        db.collection("complaints").orderBy("created", "desc").limit(100).get().then(function (snap) {
+          cList.textContent = "";
+          if (snap.empty) cList.appendChild(h("p", { class: "empty", text: "مفيش شكاوى." }));
+          snap.docs.forEach(function (d) { cList.appendChild(complaintRow(d)); });
+        }).catch(function () { cList.textContent = ""; cList.appendChild(h("p", { class: "empty", text: "ماقدرتش أحمّل الشكاوى. اتأكد إن القواعد الجديدة اتنشرت." })); });
+      }
+      function complaintRow(d) {
+        var c = d.data(), actions = h("div", { class: "actions" }), cbox = h("div", { class: "stack", hidden: "hidden" }), loaded = false;
+        var cnt = h("span", { class: "muted", text: "👍 " + (c.likes || 0) + "  👎 " + (c.dislikes || 0) + "  💬 " + (c.comments || 0) });
+        function showComments() {
+          cbox.hidden = !cbox.hidden;
+          if (cbox.hidden || loaded) return;
+          loaded = true;
+          d.ref.collection("comments").orderBy("created", "asc").get().then(function (snap) {
+            if (snap.empty) cbox.appendChild(h("p", { class: "muted", text: "مفيش تعليقات." }));
+            snap.docs.forEach(function (cd) {
+              var cm = cd.data(), row = h("div", { class: "comment" });
+              row.appendChild(h("strong", { text: cm.name })); row.appendChild(h("span", { class: "muted", text: " · " + when(cm.created) }));
+              row.appendChild(h("p", { text: cm.text }));
+              row.appendChild(h("button", { class: "btn secondary", type: "button", text: "حذف التعليق", onclick: function () {
+                var b = db.batch(); b.delete(cd.ref); b.update(d.ref, { comments: FV.increment(-1) });
+                b.commit().then(function () { row.remove(); say("اتحذف التعليق."); }, function () { say("ماتحذفش."); });
+              } }));
+              cbox.appendChild(row);
+            });
+          }).catch(function () { cbox.appendChild(h("p", { class: "muted", text: "ماقدرتش أحمّل التعليقات." })); });
+        }
+        var del = h("button", { class: "btn secondary", type: "button", text: "حذف الشكوى" });
+        del.addEventListener("click", function () {
+          actions.textContent = "";
+          actions.appendChild(h("span", { class: "muted", text: "تأكيد حذف الشكوى وكل تعليقاتها؟" }));
+          actions.appendChild(h("button", { class: "btn", type: "button", text: "أيوه احذف", onclick: function () {
+            d.ref.collection("comments").get().then(function (snap) {
+              return deleteRefs(snap.docs.map(function (x) { return x.ref; }));
+            }).then(function () { return d.ref.delete(); }).then(function () { say("اتحذفت الشكوى."); loadComplaints(); }, function () { say("ماتحذفتش."); });
+          } }));
+          actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "إلغاء", onclick: loadComplaints }));
+        });
+        actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "التعليقات", onclick: showComments }));
+        actions.appendChild(del);
+        return h("div", { class: "panel" }, [
+          h("h3", { text: c.name + (c.game ? " · " + c.game : "") }),
+          h("p", { class: "muted" }, [when(c.created) + "  ", cnt]),
+          h("p", { text: c.text, style: "white-space:pre-wrap;overflow-wrap:anywhere" }),
+          actions, cbox
+        ]);
+      }
+      box.appendChild(h("h2", { text: "الشكاوى" }));
+      box.appendChild(h("div", { class: "actions" }, [h("button", { class: "btn secondary", type: "button", text: "تحديث الشكاوى", onclick: loadComplaints })]));
+      box.appendChild(cList);
+      loadComplaints();
+
       function refresh() {
         return db.collection("games").get().then(function (snap) {
           games = snap.docs.map(function (d) { var o = d.data(); o.slug = d.id; return o; })

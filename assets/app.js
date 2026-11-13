@@ -40,6 +40,7 @@
         h("nav", { class: "nav", "aria-label": "التنقل" }, [
           h("a", { href: "index.html", text: "الرئيسية", "aria-current": page === "home" ? "page" : false }),
           h("a", { href: "games.html", text: "الألعاب", "aria-current": page === "games" ? "page" : false }),
+          h("a", { href: "complaints.html", text: "الشكاوى", "aria-current": page === "complaints" ? "page" : false }),
           h("a", { class: "icon-btn", href: "settings.html", "aria-label": "الإعدادات", html: ICONS.gear })
         ])
       ])
@@ -185,22 +186,12 @@
       ]));
     }
 
-    /* problem report -> WhatsApp */
-    var sel = h("select", { id: "rep-game" }, [h("option", { value: "", text: "اختار اللعبة" })]);
-    visible().forEach(function (g) { sel.appendChild(h("option", { value: g.title, text: g.title })); });
-    var msg = h("textarea", { id: "rep-msg", rows: "3", placeholder: "اكتب المشكلة" });
-    var form = h("form", { class: "panel" }, [
-      h("h3", { text: "عندك مشكلة؟" }),
-      h("div", { class: "field" }, [h("label", { for: "rep-game", text: "اللعبة" }), sel]),
-      h("div", { class: "field" }, [h("label", { for: "rep-msg", text: "المشكلة" }), msg]),
-      h("button", { class: "btn", type: "submit", text: "ابعتها على واتساب" })
-    ]);
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var t = "مشكلة في موقع Marcelino Games\nاللعبة: " + (sel.value || "-") + "\n" + msg.value;
-      window.open(waLink(t), "_blank", "noopener");
-    });
-    main.appendChild(form);
+    /* problems go to the public complaints board */
+    main.appendChild(h("div", { class: "panel" }, [
+      h("h3", { text: "عندك مشكلة أو اقتراح؟" }),
+      h("p", { class: "muted", text: "اكتبها في صفحة الشكاوى. أي حد يقدر يشوفها ويعلّق عليها ويعمل لايك." }),
+      h("a", { class: "btn", href: "complaints.html", text: "افتح الشكاوى" })
+    ]));
   }
 
   function pageGames() {
@@ -523,6 +514,142 @@
     return h("div", { class: "rate" }, [label, row]);
   }
 
+  /* ---------- public complaints board (Firestore: complaints/<id> and complaints/<id>/comments/<id>) ---------- */
+  function complaintsDb() { return loadFirebase(["firestore"]).then(function (fb) { return { fb: fb, db: fb.firestore() }; }); }
+  function fmtWhen(ts) {
+    try { var d = ts && ts.toDate ? ts.toDate() : new Date(); return d.toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; }
+  }
+  function getLS(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function setLS(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function cooldownLeft(key, secs) { var t = +getLS(key) || 0; return Math.max(0, Math.ceil((t + secs * 1000 - Date.now()) / 1000)); }
+
+  function pageComplaints() {
+    var main = $("main .wrap") || $("main");
+    main.appendChild(h("h1", { text: "الشكاوى والمشاكل" }));
+    main.appendChild(h("p", { class: "muted", text: "اكتب مشكلتك أو اقتراحك. الشكوى بتظهر هنا لكل الناس، وأي حد يقدر يعلّق عليها ويعمل لايك أو ديسلايك." }));
+    if (!fbReady()) { main.appendChild(h("p", { class: "empty", text: "الشكاوى مش متاحة دلوقتي." })); return; }
+
+    var nameIn = h("input", { type: "text", maxlength: "40", placeholder: "اسمك (اختياري)", autocomplete: "nickname" });
+    nameIn.value = getLS("mg-name");
+    var gameSel = h("select", null, [h("option", { value: "", text: "عامة (مش لعبة معينة)" })]);
+    visible().forEach(function (g) { gameSel.appendChild(h("option", { value: g.title, text: g.title })); });
+    var textIn = h("textarea", { rows: "4", maxlength: "1000", placeholder: "اكتب شكواك أو مشكلتك هنا" });
+    var trap = h("input", { type: "text", name: "website", tabindex: "-1", autocomplete: "off", "aria-hidden": "true", style: "position:absolute;opacity:0;width:0;height:0;padding:0;border:0;pointer-events:none" });
+    var status = h("p", { class: "note", hidden: "hidden", role: "status" });
+    var send = h("button", { class: "btn", type: "submit", text: "انشر الشكوى" });
+    var form = h("form", { class: "panel" }, [
+      h("h3", { text: "شكوى جديدة" }),
+      h("div", { class: "field" }, [h("label", { text: "الاسم" }), nameIn]),
+      h("div", { class: "field" }, [h("label", { text: "اللعبة" }), gameSel]),
+      h("div", { class: "field" }, [h("label", { text: "الشكوى" }), textIn]),
+      trap, send, status
+    ]);
+    function say(t) { status.hidden = false; status.textContent = t; }
+    main.appendChild(form);
+    var list = h("div", { class: "stack" });
+    main.appendChild(h("h2", { text: "آخر الشكاوى" }));
+    main.appendChild(list);
+    var info = h("p", { class: "muted" }); info.innerHTML = '<span class="mg-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+    list.appendChild(info);
+
+    function card(c) {
+      var ref = null, db = null, FV = null;
+      function init() { return complaintsDb().then(function (x) { db = x.db; FV = x.fb.firestore.FieldValue; ref = db.collection("complaints").doc(c.id); }); }
+      var upBtn = h("button", { class: "react", type: "button" }), downBtn = h("button", { class: "react", type: "button" });
+      var comBtn = h("button", { class: "react", type: "button" });
+      function paint() {
+        var cur = getLS("mg-react-" + c.id);
+        upBtn.textContent = "👍 " + (c.likes || 0); downBtn.textContent = "👎 " + (c.dislikes || 0); comBtn.textContent = "💬 " + (c.comments || 0);
+        upBtn.classList.toggle("on", cur === "up"); downBtn.classList.toggle("on", cur === "down");
+      }
+      function react(kind) {
+        var key = "mg-react-" + c.id, cur = getLS(key), dl = 0, dd = 0, next = kind;
+        if (cur === kind) { if (kind === "up") dl = -1; else dd = -1; next = ""; }
+        else { if (kind === "up") dl = 1; else dd = 1; if (cur === "up") dl = -1; if (cur === "down") dd = -1; }
+        var prev = { l: c.likes || 0, d: c.dislikes || 0 };
+        c.likes = prev.l + dl; c.dislikes = prev.d + dd; setLS(key, next); paint();
+        init().then(function () {
+          var up = {}; if (dl) up.likes = FV.increment(dl); if (dd) up.dislikes = FV.increment(dd);
+          return ref.update(up);
+        }).catch(function () { c.likes = prev.l; c.dislikes = prev.d; setLS(key, cur); paint(); });
+      }
+      upBtn.addEventListener("click", function () { react("up"); });
+      downBtn.addEventListener("click", function () { react("down"); });
+
+      var cbox = h("div", { class: "comments", hidden: "hidden" }), loaded = false;
+      function addComment(cm) {
+        cbox.insertBefore(h("div", { class: "comment" }, [
+          h("strong", { text: cm.name }), h("span", { class: "muted", text: " · " + fmtWhen(cm.created) }), h("p", { text: cm.text })
+        ]), cbox.querySelector("form"));
+      }
+      function openComments() {
+        cbox.hidden = !cbox.hidden;
+        if (cbox.hidden || loaded) return;
+        loaded = true;
+        var nm = h("input", { type: "text", maxlength: "40", placeholder: "اسمك (اختياري)" }); nm.value = getLS("mg-name");
+        var tx = h("textarea", { rows: "2", maxlength: "500", placeholder: "اكتب تعليق" });
+        var st = h("p", { class: "note", hidden: "hidden" });
+        var cf = h("form", { class: "comment-form" }, [nm, tx, h("button", { class: "btn secondary", type: "submit", text: "تعليق" }), st]);
+        cf.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var text = tx.value.trim(); if (!text) return;
+          var wait = cooldownLeft("mg-last-comment", 10);
+          if (wait) { st.hidden = false; st.textContent = "استنى " + wait + " ثواني."; return; }
+          var name = nm.value.trim() || "زائر"; setLS("mg-name", nm.value.trim());
+          setLS("mg-last-comment", String(Date.now()));
+          init().then(function () {
+            var b = db.batch(), cref = ref.collection("comments").doc();
+            b.set(cref, { name: name, text: text, created: FV.serverTimestamp() });
+            b.update(ref, { comments: FV.increment(1) });
+            return b.commit();
+          }).then(function () {
+            addComment({ name: name, text: text, created: null }); tx.value = ""; c.comments = (c.comments || 0) + 1; paint(); st.hidden = true;
+          }).catch(function () { st.hidden = false; st.textContent = "ماتبعتش. جرّب تاني."; });
+        });
+        cbox.appendChild(cf);
+        init().then(function () { return ref.collection("comments").orderBy("created", "asc").limit(100).get(); }).then(function (snap) {
+          snap.docs.forEach(function (d) { addComment(d.data()); });
+        }).catch(function () { cbox.insertBefore(h("p", { class: "muted", text: "ماقدرتش أحمّل التعليقات." }), cf); });
+      }
+      comBtn.addEventListener("click", openComments);
+      paint();
+      return h("article", { class: "panel complaint" }, [
+        h("div", { class: "c-head" }, [h("strong", { text: c.name }), c.game ? h("span", { class: "c-game", text: c.game }) : null, h("span", { class: "muted", text: fmtWhen(c.created) })]),
+        h("p", { class: "c-text", text: c.text }),
+        h("div", { class: "actions" }, [upBtn, downBtn, comBtn]),
+        cbox
+      ]);
+    }
+
+    function draw(items) {
+      list.textContent = "";
+      if (!items.length) list.appendChild(h("p", { class: "empty", text: "مفيش شكاوى لسه." }));
+      items.forEach(function (c) { list.appendChild(card(c)); });
+    }
+    var items = [];
+    complaintsDb().then(function (x) { return withTimeout(x.db.collection("complaints").orderBy("created", "desc").limit(40).get(), 10000); })
+      .then(function (snap) { items = snap.docs.map(function (d) { var o = d.data(); o.id = d.id; return o; }); draw(items); })
+      .catch(function () { list.textContent = ""; list.appendChild(h("p", { class: "empty", text: "ماقدرتش أحمّل الشكاوى. جرّب تحدّث الصفحة." })); });
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (trap.value) return;
+      var text = textIn.value.trim();
+      if (text.length < 3) { say("اكتب الشكوى (3 حروف على الأقل)."); return; }
+      var wait = cooldownLeft("mg-last-post", 30);
+      if (wait) { say("استنى " + wait + " ثانية قبل ما تنشر شكوى تانية."); return; }
+      var name = nameIn.value.trim() || "زائر"; setLS("mg-name", nameIn.value.trim());
+      send.disabled = true; say("بنشر...");
+      complaintsDb().then(function (x) {
+        return x.db.collection("complaints").add({ name: name, text: text, game: gameSel.value || "", created: x.fb.firestore.FieldValue.serverTimestamp(), likes: 0, dislikes: 0, comments: 0 });
+      }).then(function (ref) {
+        setLS("mg-last-post", String(Date.now()));
+        items.unshift({ id: ref.id, name: name, text: text, game: gameSel.value || "", created: null, likes: 0, dislikes: 0, comments: 0 });
+        draw(items); textIn.value = ""; say("اتنشرت. شكرًا.");
+      }).catch(function () { say("ماتنشرتش. جرّب تاني."); }).then(function () { send.disabled = false; });
+    });
+  }
+
   /* ---------- boot ---------- */
   /* The page paints at once, never waits for Firebase:
      1) from the copy saved on this device at the last visit (no network, instant), or
@@ -568,6 +695,7 @@
     else if (page === "games") pageGames();
     else if (page === "game") pageGame();
     else if (page === "settings") pageSettings();
+    else if (page === "complaints") pageComplaints();
     else if (page === "admin" && window.MG_ADMIN) window.MG_ADMIN(window.MG);
     if (repaint && y) window.scrollTo(0, y);
     if (window.MG_PUSH && page !== "admin") window.MG_PUSH.init(window.MG);

@@ -219,3 +219,15 @@ body::before { pointer-events: none; }
 .star .half { position: absolute; top: 0; bottom: 0; width: 50%; background: none; border: 0; padding: 0; cursor: pointer; }
 .star .half.l { left: 0; }
 .star .half.r { right: 0; }
+
+/* complaints board */
+.complaint .c-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 4px; }
+.complaint .c-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0 10px; }
+.c-game { font-size: .8rem; color: var(--accent); border: 1px solid rgba(34,211,238,.35); border-radius: 999px; padding: 0 10px; }
+.react { min-height: 40px; padding: 4px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.04); color: inherit; font: inherit; cursor: pointer; transition: transform .12s, background .15s, border-color .15s; }
+.react:hover { transform: translateY(-1px); border-color: var(--accent); }
+.react.on { background: rgba(34,211,238,.18); border-color: var(--accent); }
+.comments { margin-top: 12px; display: grid; gap: 10px; border-top: 1px solid rgba(255,255,255,.1); padding-top: 12px; }
+.comment { background: rgba(255,255,255,.04); border-radius: 8px; padding: 8px 12px; }
+.comment p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment-form { display: grid; gap: 8px; }
