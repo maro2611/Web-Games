@@ -60,9 +60,12 @@
       ".mgi-stars{position:absolute;inset:0;pointer-events:none}",
       ".mgi-star{position:absolute;border-radius:50%;background:#cfe6ff;opacity:0;animation:mgi-tw 3.2s ease-in-out infinite}",
       "@keyframes mgi-tw{0%,100%{opacity:.05;transform:scale(.7)}50%{opacity:.7;transform:scale(1.25)}}",
-      ".mgi-wall{position:absolute;inset:0;pointer-events:none;clip-path:circle(0px at 50% 50%);-webkit-clip-path:circle(0px at 50% 50%);" +
-        "background:radial-gradient(ellipse 75% 60% at 20% 15%,rgba(124,58,237,.42),transparent 70%),radial-gradient(ellipse 65% 55% at 85% 80%,rgba(109,40,217,.34),transparent 72%)," +
-        "linear-gradient(180deg,rgba(5,7,24,.3),rgba(5,7,24,.52)),url(images/bg.jpg) center/cover no-repeat #070a1e}",
+      ".mgi-wall{position:absolute;inset:0;pointer-events:none;overflow:hidden;clip-path:circle(0px at 50% 50%);-webkit-clip-path:circle(0px at 50% 50%)}",
+      ".mgi-wall>div{position:absolute;inset:0}",
+      ".mgi-wbase{background:radial-gradient(ellipse 75% 60% at 20% 15%,rgba(124,58,237,.5),transparent 70%),radial-gradient(ellipse 65% 55% at 85% 80%,rgba(109,40,217,.4),transparent 72%),#070a1e}",
+      ".mgi-wimg{background:url(images/bg.jpg) center/cover no-repeat;opacity:0;will-change:transform,opacity}",
+      ".mgi-wtint{background:linear-gradient(180deg,rgba(5,7,24,.3),rgba(5,7,24,.52))}",
+      ".mgi-wfloor{top:auto;height:34%;opacity:0;background:radial-gradient(ellipse 60% 70% at 50% 100%,rgba(34,211,238,.42),rgba(34,211,238,0) 70%)}",
       ".mgi-scrim{position:absolute;left:0;top:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(3,5,20,.7) 0,rgba(3,5,20,.4) 45%,rgba(3,5,20,0) 72%)}",
       ".mgi-vig{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.55) 100%)}",
       ".mgi-flash{position:absolute;inset:0;opacity:0;pointer-events:none}",
@@ -150,6 +153,10 @@
         "px;animation-delay:-" + (rnd() * 3.2).toFixed(2) + "s;animation-duration:" + (2.4 + rnd() * 2.4).toFixed(2) + "s";
     }
     var wall = el("div", "mgi-wall", stage);
+    var wbase = el("div", "mgi-wbase", wall);        // 1st layer: the cosmic purple-blue sky
+    var wimg = el("div", "mgi-wimg", wall);          // 2nd layer: the glowing controller
+    el("div", "mgi-wtint", wall);
+    var wfloor = el("div", "mgi-wfloor", wall);      // 3rd layer: the light on the floor
     var scrim = el("div", "mgi-scrim", stage);
     var vig = el("div", "mgi-vig", stage);
     var flash = el("div", "mgi-flash", stage);
@@ -235,7 +242,7 @@
         L.vcy = floorY - fs * .36;
         L.el.style.transformOrigin = "50% " + (L.vcy - L.top).toFixed(1) + "px";
       }
-      pillY = floorY + fs * .3 + pillH / 2;
+      pillY = floorY + fs * .2 + pillH / 2;           // sits on the floor, right under the floating title
     }
     function makePile() {
       var n = letters.length, bw = letters[n - 1].cx - letters[0].cx + fs * .6;
@@ -447,6 +454,7 @@
 
     /* ================= PHASE 2 + 3: light burst, arm in, letters fall ================= */
     var SLOT = function (L) { return { x: L.cx, y: L.vcy }; };
+    var burstP = null, LIFT = 30, floatShadow = null;
 
     async function dropLetter(L, i) {
       await sleep(L.delay);
@@ -463,7 +471,15 @@
 
     async function burst() {
       await Promise.all([
-        tween(1100, function (e) {
+        bg((async function () {                      // the wallpaper appears layer by layer, under the falling letters
+          await sleep(650);
+          await tween(900, function (e) { wimg.style.opacity = e.toFixed(3); wimg.style.transform = "scale(" + lerp(1.07, 1, e).toFixed(4) + ")"; }, E.io);
+        })()),
+        bg((async function () {
+          await sleep(1350);
+          await tween(800, function (e) { wfloor.style.opacity = e.toFixed(3); }, E.io);
+        })()),
+        tween(1700, function (e) {
           var r = lerp(8, diag * 1.08, e);
           wall.style.clipPath = wall.style.webkitClipPath = "circle(" + r.toFixed(1) + "px at " + bx + "px " + by + "px)";
           rim.style.opacity = (1 - e * e).toFixed(3);
@@ -490,7 +506,8 @@
 
     async function phaseReveal() {
       for (var i = 0; i < letters.length; i++) letters[i].landed = bg(dropLetter(letters[i], i));
-      await Promise.all([burst(), armEntry()]);
+      burstP = bg(burst());                             // the wallpaper keeps revealing while the arm starts sorting
+      await armEntry();
     }
 
     /* ================= PHASE 4: the arm sorts every letter ================= */
@@ -527,6 +544,7 @@
         letters[i].el.style.opacity = 1;
         letters[i].el.style.transform = "translate3d(0,0,0) rotate(0deg) scale(1)";
       }
+      await burstP;
     }
 
     /* ================= PHASE 5: slam, bounce, badge ================= */
@@ -552,9 +570,27 @@
       }, E.lin).then(function () { ring.remove(); ring2.remove(); sparks.forEach(function (s) { s.remove(); }); });
     }
     async function bounceTitle() {
-      await tween(170, function (e) { setNameY(-18 * e); }, E.out);                          // up: translateY(-18px)
-      await tween(480, function (e, uu) { setNameY(-10 - 8 * Math.pow(1 - uu, 2) * Math.cos(uu * Math.PI * 2.5)); }, E.lin);   // settles a little higher
-      setNameY(-10);
+      LIFT = clamp(fs * .5, 24, 56);
+      var n = letters.length, sw = letters[n - 1].cx - letters[0].cx + fs * .6;
+      floatShadow = sv("ellipse", { cx: W / 2, cy: floorY + fs * .08, rx: sw * .42, ry: Math.max(fs * .07, 4), fill: "#000", opacity: 0 }, fxSvg);
+      floatShadow.setAttribute("style", "filter:blur(6px)");
+      var top = LIFT + clamp(fs * .22, 10, 26);
+      await tween(190, function (e) { setNameY(-top * e); }, E.out);                         // the slam throws the title up off the floor
+      await tween(560, function (e, uu) {                                                    // and it settles into a floating position above it
+        setNameY(-lerp(top, LIFT, e) - 5 * Math.pow(1 - uu, 2) * Math.sin(uu * Math.PI * 3));
+        floatShadow.setAttribute("opacity", (.5 * e).toFixed(3));
+      }, E.out);
+      setNameY(-LIFT);
+      bg((async function () {                                                                // gentle hover until the intro ends
+        var t0 = performance.now();
+        for (;;) {
+          await frame();
+          var s = Math.sin((performance.now() - t0) / 380);
+          setNameY(-LIFT - 3.5 * s);
+          floatShadow.setAttribute("rx", (sw * (.42 - .012 * s)).toFixed(1));
+          floatShadow.setAttribute("opacity", (.5 + .06 * s).toFixed(3));
+        }
+      })());
     }
     async function shake() {
       await tween(420, function (e, uu) {
