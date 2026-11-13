@@ -45,7 +45,7 @@ service cloud.firestore {
     }
 
     // Download counter and star ratings: one document per game. Visitors may only count one download
-    // (+1) or add one rating (1 to 5 stars); only the owner can set other values or reset.
+    // (+1), add one rating (1 to 5 stars) or change their own rating; only the owner can set other values or reset.
     function statsKeys() {
       let d = request.resource.data;
       return d.keys().hasOnly(['downloads', 'ratingSum', 'ratingCount']) && d.keys().hasAll(['downloads', 'ratingSum', 'ratingCount'])
@@ -67,7 +67,14 @@ service cloud.firestore {
            || (request.resource.data.downloads == resource.data.downloads
                && request.resource.data.ratingCount == resource.data.ratingCount + 1
                && request.resource.data.ratingSum >= resource.data.ratingSum + 1
-               && request.resource.data.ratingSum <= resource.data.ratingSum + 5)));
+               && request.resource.data.ratingSum <= resource.data.ratingSum + 5)
+           || (request.resource.data.downloads == resource.data.downloads
+               && request.resource.data.ratingCount == resource.data.ratingCount
+               && request.resource.data.ratingSum != resource.data.ratingSum
+               && request.resource.data.ratingSum >= resource.data.ratingSum - 4
+               && request.resource.data.ratingSum <= resource.data.ratingSum + 4
+               && request.resource.data.ratingSum >= request.resource.data.ratingCount
+               && request.resource.data.ratingSum <= request.resource.data.ratingCount * 5)));
       allow delete: if isOwner();
     }
 

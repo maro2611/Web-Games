@@ -468,11 +468,12 @@
       STATS = m; saveStats(); refreshStats();
     }).catch(function () {});
   }
-  function bumpStat(slug, kind, r) {
+  function bumpStat(slug, kind, r, old) {
     if (!fbReady()) return;
     statsDb().then(function (fb) {
       var fv = fb.firestore.FieldValue, ref = fb.firestore().collection("stats").doc(slug), up = {}, init = { downloads: 0, ratingSum: 0, ratingCount: 0 };
       if (kind === "dl") { up.downloads = fv.increment(1); init.downloads = 1; }
+      else if (old) { up.ratingSum = fv.increment(r - old); init.ratingSum = r; init.ratingCount = 1; }   // the visitor changed their stars
       else { up.ratingSum = fv.increment(r); up.ratingCount = fv.increment(1); init.ratingSum = r; init.ratingCount = 1; }
       return ref.update(up).catch(function (e) {
         if (e && (e.code === "not-found" || e.code === "permission-denied")) return ref.set(init);   // first count for this game
@@ -480,7 +481,9 @@
       });
     }).then(function () {
       var s = STATS[slug] || { downloads: 0, ratingSum: 0, ratingCount: 0 };
-      if (kind === "dl") s.downloads = (+s.downloads || 0) + 1; else { s.ratingSum = (+s.ratingSum || 0) + r; s.ratingCount = (+s.ratingCount || 0) + 1; }
+      if (kind === "dl") s.downloads = (+s.downloads || 0) + 1;
+      else if (old) s.ratingSum = (+s.ratingSum || 0) + r - old;
+      else { s.ratingSum = (+s.ratingSum || 0) + r; s.ratingCount = (+s.ratingCount || 0) + 1; }
       STATS[slug] = s; saveStats(); refreshStats();
     }).catch(function () {});
   }
@@ -493,15 +496,16 @@
   function ratingWidget(g) {
     var key = "mg-rated-" + g.slug, mine = 0;
     try { mine = +localStorage.getItem(key) || 0; } catch (e) {}
-    var label = h("p", { class: "muted", text: mine ? "تقييمك " + mine + " من 5. شكرًا!" : "قيّم اللعبة" });
+    var label = h("p", { class: "muted", text: mine ? "تقييمك " + mine + " من 5. دوس على نجمة تانية لو عايز تغيّره" : "قيّم اللعبة" });
     var stars = [];
     function paintStars(n) { stars.forEach(function (s, i) { s.classList.toggle("on", i < n); }); }
     for (var i = 1; i <= 5; i++) (function (n) {
       stars.push(h("button", { type: "button", class: "star", "aria-label": n + " من 5", text: "★", onclick: function () {
-        if (mine) return;
+        if (mine === n) return;
+        var old = mine;
         mine = n; try { localStorage.setItem(key, String(n)); } catch (e) {}
-        paintStars(n); label.textContent = "تقييمك " + n + " من 5. شكرًا!";
-        bumpStat(g.slug, "rate", n);
+        paintStars(n); label.textContent = (old ? "اتغيّر تقييمك لـ " : "شكرًا! تقييمك ") + n + " من 5";
+        bumpStat(g.slug, "rate", n, old);
       } }));
     })(i);
     paintStars(mine);
