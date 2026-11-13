@@ -20,5 +20,27 @@
         "url": "https://maro2611.github.io/Web-Games/downloads/Habdology-1.0.apk"
       }
     ]
+  },
+  {
+    "slug": "shobak-el-segel",
+    "title": "شباك السجل",
+    "desc": "محاكاة موظف السجل المدني المصري: أنت على الشباك بتخلّص ورق الناس، وتقرر تمشي صح ولا تقبل الرشوة. بطاقات، مستندات مزوّرة، مفتش مفاجئ ونهايات متعددة.",
+    "platform": "Android",
+    "wallpaper": "images/shobak-wallpaper.jpg",
+    "screenshots": [],
+    "minAndroid": "6.0",
+    "ram": "2 GB",
+    "added": "2026-11-14",
+    "hidden": false,
+    "hue": 35,
+    "versions": [
+      {
+        "version": "0.1.0 (build 117)",
+        "date": "2026-11-13",
+        "size": "71 MB",
+        "changelog": "نسخة تجريبية: خدمة بطاقة الرقم القومي، الرشوة، متجر الأدوات، ونهايات متعددة.",
+        "url": "https://maro2611.github.io/Web-Games/downloads/Shobak-El-Segel-117.apk"
+      }
+    ]
   }
 ]
