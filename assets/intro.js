@@ -60,12 +60,12 @@
       ".mgi-stars{position:absolute;inset:0;pointer-events:none}",
       ".mgi-star{position:absolute;border-radius:50%;background:#cfe6ff;opacity:0;animation:mgi-tw 3.2s ease-in-out infinite}",
       "@keyframes mgi-tw{0%,100%{opacity:.05;transform:scale(.7)}50%{opacity:.7;transform:scale(1.25)}}",
-      ".mgi-wall{position:absolute;inset:0;pointer-events:none;overflow:hidden;clip-path:circle(0px at 50% 50%);-webkit-clip-path:circle(0px at 50% 50%)}",
+      ".mgi-wall{position:absolute;inset:0;pointer-events:none;overflow:hidden;opacity:0;will-change:transform,opacity}",
       ".mgi-wall>div{position:absolute;inset:0}",
       ".mgi-wbase{background:radial-gradient(ellipse 75% 60% at 20% 15%,rgba(124,58,237,.5),transparent 70%),radial-gradient(ellipse 65% 55% at 85% 80%,rgba(109,40,217,.4),transparent 72%),#070a1e}",
-      ".mgi-wimg{background:url(images/bg.jpg) center/cover no-repeat;opacity:0;will-change:transform,opacity}",
-      ".mgi-wtint{background:linear-gradient(180deg,rgba(5,7,24,.3),rgba(5,7,24,.52))}",
-      ".mgi-wfloor{top:auto;height:34%;opacity:0;background:radial-gradient(ellipse 60% 70% at 50% 100%,rgba(34,211,238,.42),rgba(34,211,238,0) 70%)}",
+      ".mgi-wimg{background:url(images/banner.jpg) center/cover no-repeat;-webkit-mask-image:linear-gradient(180deg,#000 80%,transparent 100%);mask-image:linear-gradient(180deg,#000 80%,transparent 100%)}",
+      ".mgi-wtint{background:radial-gradient(ellipse 70% 55% at 15% 10%,rgba(124,58,237,.3),transparent 70%),radial-gradient(ellipse 60% 50% at 88% 85%,rgba(109,40,217,.26),transparent 72%),linear-gradient(180deg,rgba(5,7,24,.12),rgba(5,7,24,.3))}",
+      ".mgi-wall>.mgi-wfloor{top:auto;bottom:0;height:34%;opacity:0;background:radial-gradient(ellipse 60% 70% at 50% 100%,rgba(34,211,238,.42),rgba(34,211,238,0) 70%)}",
       ".mgi-scrim{position:absolute;left:0;top:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(3,5,20,.7) 0,rgba(3,5,20,.4) 45%,rgba(3,5,20,0) 72%)}",
       ".mgi-vig{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.55) 100%)}",
       ".mgi-flash{position:absolute;inset:0;opacity:0;pointer-events:none}",
@@ -84,9 +84,8 @@
       ".mgi-pill::after{content:'';position:absolute;inset:-6px;border-radius:999px;box-shadow:0 0 30px rgba(0,168,255,.65);opacity:0}",
       ".mgi-pill.on::after{animation:mgi-glow 2.2s ease-in-out infinite}",
       "@keyframes mgi-glow{0%,100%{opacity:.15}50%{opacity:.9}}",
-      ".mgi-mw{position:absolute;left:0;top:0;z-index:8;opacity:0;cursor:pointer;font-family:" + f + ";font-weight:800;transform-origin:50% 86%;will-change:transform,opacity;touch-action:manipulation}",
-      ".mgi-mtxt{position:relative;color:#fff;line-height:1;white-space:nowrap;text-shadow:0 0 18px rgba(170,225,255,.95),0 0 46px rgba(0,168,255,.7),0 5px 0 rgba(0,20,50,.5)}",
-      ".mgi-mglow{position:absolute;left:50%;top:48%;width:2em;height:2em;margin:-1em 0 0 -1em;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(120,205,255,.5),rgba(120,205,255,0) 66%);animation:mgi-pulse 2.4s ease-in-out infinite}",
+      ".mgi-mw{position:absolute;left:0;top:0;z-index:8;cursor:pointer;border-radius:50%;touch-action:manipulation;will-change:transform;outline:none}",
+      ".mgi-mglow{position:absolute;inset:-22%;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(120,205,255,.42),rgba(120,205,255,0) 66%);animation:mgi-pulse 2.4s ease-in-out infinite}",
       "@keyframes mgi-pulse{0%,100%{opacity:.55;transform:scale(.88)}50%{opacity:1;transform:scale(1.12)}}",
       ".mgi-rip{position:absolute;left:0;top:0;width:200px;height:200px;border-radius:50%;border:3px solid rgba(160,235,255,.9);opacity:0;pointer-events:none;z-index:7;will-change:transform,opacity}",
       ".mgi-hint{position:absolute;left:50%;bottom:max(40px,calc(env(safe-area-inset-bottom) + 28px));max-width:92vw;z-index:9;direction:rtl;text-align:center;white-space:nowrap;pointer-events:none;opacity:0;transform:translate3d(-50%,14px,0);" +
@@ -176,10 +175,6 @@
     mw.setAttribute("role", "button");
     mw.setAttribute("aria-label", "M");
     el("div", "mgi-mglow", mw);
-    var mtxt = el("div", "mgi-mtxt", mw);
-    mtxt.textContent = "M";
-    var mprobe = el("span", "", mtxt);
-    mprobe.style.cssText = "display:inline-block;width:0;height:0";
     var load = el("div", "mgi-load", stage);
     var lsvg = sv("svg", { viewBox: "0 0 78 78" }, load);
     var ldefs = sv("defs", {}, lsvg);
@@ -213,8 +208,23 @@
 
     /* ---------- geometry ---------- */
     var fs = 80, u = 1, titleTop = 0, floorY = 0, pillFs = 20, pillH = 40, pillW = 200, pillY = 0;
-    var Mh = 200, Mx = W / 2, plateVisY = H * .38, mBase = 0, mTopY = 0, baseY = 0, restTipY = 0;
-    var M = { dy: 0, s: 1, bob: 0 };
+    var LIFT = 30;
+    // the wallpaper is banner.jpg (1200x800): the "M" plate sits at (600,277) on the controller, and the whole image is lifted a bit
+    // so there is a clear strip UNDER the controller for the name and the sentence
+    var S = 1, SHIFT = 0, offX = 0, offY = 0, plX = W / 2, plY = H * .35, Z0 = 2.2, ctrlBottom = H * .6, Mx = W / 2, baseY = 0, restTipY = 0, mHalfH = 40, bx = 0, by = 0, R0 = 100, Rmax = 1000, diag = 1000;
+    var WS = { z: 2.2, r: 100, op: 0, k: 1 };      // wall state: zoom, spotlight radius, opacity, press dip
+    function geom() {
+      S = Math.max(W / 1200, H / 800);
+      SHIFT = Math.round(H * .09);
+      offX = (W - 1200 * S) / 2; offY = (H - 800 * S) / 2 - SHIFT;
+      plX = offX + 600 * S; plY = offY + 277 * S;
+      ctrlBottom = offY + 606 * S;
+      Z0 = clamp(Math.min(W * .62, H * .44, 380) / (150 * S), 1.5, 3.4);
+      mHalfH = 45 * S * Z0;
+      Mx = plX; bx = plX; by = plY;
+      R0 = 118 * S;
+      diag = Math.hypot(W, H); Rmax = diag * 1.1;
+    }
     var A = { Sx: 0, Sy: 0, tx: 0, ty: 0 };
     var TIPMAX = 63.5;
 
@@ -222,14 +232,18 @@
       nameEl.style.fontSize = "100px";
       var a = letters[0].el, z = letters[letters.length - 1].el;
       var nat = z.offsetLeft + z.offsetWidth - a.offsetLeft;
-      fs = clamp(100 * Math.min(W * .9, 1060) / Math.max(nat, 1), 24, 150);
+      geom();
+      fs = clamp(Math.min(100 * Math.min(W * .9, 1060) / Math.max(nat, 1), H * .1), 24, 150);
       u = clamp(fs / 52, .75, 2.2);
+      LIFT = clamp(fs * .5, 24, 56);
       nameEl.style.fontSize = fs + "px";
       pillFs = clamp(fs * .36, 15, 44);
       pill.style.fontSize = pillFs + "px";
       pillW = pill.offsetWidth; pillH = pill.offsetHeight;
-      var total = fs * 1.15 + fs * .34 + pillH;
-      titleTop = Math.max(H * .1, (H - total) / 2 - H * .02);
+      var total = LIFT + fs * 1.15 + fs * .2 + pillH;
+      var blockTop = ctrlBottom + Math.max(6, (H - ctrlBottom - total) / 2 - 4);
+      blockTop = Math.min(blockTop, H - 12 - total);                 // never fall off the screen, even on very wide windows
+      titleTop = blockTop + LIFT;
       nameEl.style.top = titleTop + "px";
       pill.style.transform = "translate3d(" + (-pillW - 40) + "px," + (-200) + "px,0)";
     }
@@ -269,16 +283,20 @@
       else { A.Sx = -(TIPMAX * u + Math.max(pillW, 0) + 120); A.Sy = floorY + fs * .9; }
     }
     function layoutPlate() {
-      Mh = clamp(Math.min(W * .5, H * .3, 280), 96, 280);
-      Mx = W / 2;
-      mw.style.fontSize = Mh + "px";
-      mBase = mtxt.offsetTop + mprobe.offsetTop;
-      baseY = plateVisY + .36 * Mh;
-      restTipY = baseY + 2;
-      mTopY = restTipY - mBase;
+      var hs = 150 * S * Z0 * 1.2;                       // hit area a bit bigger than the M itself
+      mw.style.width = mw.style.height = hs + "px";
+      mw.style.transform = "translate3d(" + (plX - hs / 2) + "px," + (plY - hs / 2) + "px,0)";
+      baseY = plY + mHalfH;
+      restTipY = baseY + 6;
+      wimg.style.top = -SHIFT + "px"; wimg.style.bottom = SHIFT + "px";
+      wall.style.transformOrigin = plX + "px " + plY + "px";
+      drawWall();
     }
-    function applyM() {
-      mw.style.transform = "translate3d(" + Mx + "px," + (mTopY + M.dy + M.bob) + "px,0) translateX(-50%) scale(" + M.s.toFixed(4) + ")";
+    function drawWall() {
+      var r = WS.r, m = "radial-gradient(circle at " + plX.toFixed(1) + "px " + plY.toFixed(1) + "px,#000 " + (r * .55).toFixed(1) + "px,transparent " + r.toFixed(1) + "px)";
+      wall.style.webkitMaskImage = m; wall.style.maskImage = m;
+      wall.style.transform = "scale(" + (WS.z * WS.k).toFixed(4) + ")";
+      wall.style.opacity = WS.op.toFixed(3);
     }
 
     /* ---------- the alien arm (rubbery arm + 3-finger hand) ---------- */
@@ -377,17 +395,15 @@
 
     /* ---------- boot: fit, measure, plate ---------- */
     fit(); measure(); makePile(); sizeArm(); layoutPlate();
-    var bx = Mx, by = plateVisY;                 // centre of the light burst
-    var diag = Math.hypot(W, H);
-    wall.style.clipPath = wall.style.webkitClipPath = "circle(0px at " + bx + "px " + by + "px)";
-    flash.style.background = "radial-gradient(circle at " + bx + "px " + by + "px,rgba(205,246,255,.95) 0,rgba(34,211,238,.4) 16%,rgba(34,211,238,0) 55%)";
+    WS.z = Z0 * 1.1; WS.r = R0; WS.op = 0; layoutPlate();
+    function placeFlash() { flash.style.background = "radial-gradient(circle at " + bx + "px " + by + "px,rgba(205,246,255,.95) 0,rgba(34,211,238,.4) 16%,rgba(34,211,238,0) 55%)"; }
+    placeFlash();
     function placeScrim() {
       var sw = Math.min(W, fs * 17);
       scrim.style.width = sw + "px"; scrim.style.height = fs * 3.9 + "px";
       scrim.style.transform = "translate3d(" + (W / 2 - sw / 2) + "px," + (titleTop - fs * .85) + "px,0)";
     }
     placeScrim();
-    applyM();
     setShoulder("bottom");
 
     /* ---------- tiny effects ---------- */
@@ -423,7 +439,7 @@
     async function phaseLoad() {
       var t0 = performance.now(), ready = false, p = 0, img = new Image();
       img.onload = img.onerror = function () { ready = true; };
-      img.src = "images/bg.jpg";
+      img.src = "images/banner.jpg";
       var fontsOk = false;
       try {
         Promise.race([
@@ -445,51 +461,49 @@
         var a = p * Math.PI * 2 - Math.PI / 2;
         lorb.setAttribute("cx", (39 + 28 * Math.cos(a)).toFixed(2)); lorb.setAttribute("cy", (39 + 28 * Math.sin(a)).toFixed(2));
         lpct.textContent = Math.round(p * 100);
-        mw.style.opacity = E.io(clamp(el_ / 700, 0, 1)).toFixed(3);
+        WS.op = E.io(clamp(el_ / 900, 0, 1)) * .62;               // the controller fades in, lit only around its M
+        WS.z = Z0 * lerp(1.1, 1, E.out(clamp(el_ / 1500, 0, 1))); WS.r = R0; drawWall();
         var bob = Math.sin(el_ / 430) * 4 * u;
-        M.bob = bob; applyM();
         var rise = E.out(clamp(el_ / 1000, 0, 1));
         setHand(Mx, lerp(H + 90 * u, restTipY + bob, rise), pointUp(0));
         if (p >= .995 && tp >= 1 && done) break;
       }
       lpct.textContent = "100";
       lbar.setAttribute("stroke-dashoffset", 0);
-      fit(); measure(); makePile(); sizeArm(); layoutPlate(); placeScrim();   // fonts may have arrived: re-fit once, before anything is visible
-      M.bob = 0; applyM();
+      fit(); measure(); makePile(); sizeArm(); layoutPlate(); placeScrim(); placeFlash();   // fonts may have arrived: re-fit once, before anything is visible
       bg(tween(380, function (e) { load.style.opacity = (1 - e).toFixed(3); }, E.io));
       // wait for the visitor: the plate keeps floating, and after 2 seconds a message tells them what to do
       var tw0 = performance.now(), hinted = false;
       while (!clicked) {
         await frame();
         var nw = performance.now();
-        M.bob = Math.sin(nw / 430) * 4 * u; applyM();
-        setHand(Mx, restTipY + M.bob, pointUp(0));
+        WS.op = .62 + .05 * Math.sin(nw / 520); drawWall();
+        setHand(Mx, restTipY + Math.sin(nw / 430) * 4 * u, pointUp(0));
         if (!hinted && nw - tw0 > 2000) { hinted = true; hint.classList.add("on"); }
       }
       hint.classList.remove("on");
-      M.bob = 0; applyM();
     }
 
     async function phasePress() {
       var y0 = restTipY;
-      bg(ripple(rip1, Mx, baseY, 0)); bg(ripple(rip2, Mx, baseY, 130));
-      await tween(170, function (e) { M.dy = 10 * e; M.s = 1 - .06 * e; applyM(); setHand(Mx, y0 + 6 * e, pointUp(.2 * e)); }, E.out);
+      mw.style.pointerEvents = "none";
+      bg(ripple(rip1, plX, plY, 0)); bg(ripple(rip2, plX, plY, 130));
+      await tween(170, function (e) { WS.k = 1 - .05 * e; drawWall(); setHand(Mx, y0 + 6 * e, pointUp(.2 * e)); }, E.out);
       await sleep(90);
-      await tween(330, function (e) { M.dy = 10 * (1 - e); M.s = .94 + .06 * e; applyM(); setHand(Mx, y0 + 6 * (1 - e), pointUp(.2 * (1 - e))); }, E.back);
-      M.dy = 0; M.s = 1; applyM();
+      await tween(330, function (e) { WS.k = .95 + .05 * e; drawWall(); setHand(Mx, y0 + 6 * (1 - e), pointUp(.2 * (1 - e))); }, E.back);
+      WS.k = 1; drawWall();
+      mw.style.visibility = "hidden";
     }
 
     /* ================= PHASE 2 + 3: light burst, arm in, letters fall ================= */
     var SLOT = function (L) { return { x: L.cx, y: L.vcy }; };
-    var burstP = null, LIFT = 30, floatShadow = null;
+    var burstP = null, floatShadow = null;
 
     async function dropLetter(L, i) {
       await sleep(L.delay);
-      if (i === 0) mw.style.visibility = "hidden";
       L.el.style.opacity = 1;
-      var plateY = baseY - .36 * Mh;
-      var sx0 = i === 0 ? Mx : L.jx + L.dx0, sy0 = i === 0 ? plateY : -fs * 1.6, s0 = i === 0 ? Mh / fs : 1;
-      await tween(i === 0 ? 800 : 720, function (e, uu) {
+      var sx0 = L.jx + L.dx0, sy0 = -fs * 1.6, s0 = 1;
+      await tween(720, function (e, uu) {
         var x = lerp(sx0, L.jx, E.out(uu)), y = lerp(sy0, L.jy, E.bounce(uu));
         var rot = L.rot + L.spin * (1 - E.out(uu)), s = lerp(s0, 1, E.out(uu));
         L.el.style.transform = "translate3d(" + (x - L.cx).toFixed(2) + "px," + (y - L.vcy).toFixed(2) + "px,0) rotate(" + rot.toFixed(2) + "deg) scale(" + s.toFixed(3) + ")";
@@ -497,25 +511,24 @@
     }
 
     async function burst() {
+      var z0 = WS.z, o0 = WS.op;
       await Promise.all([
-        bg((async function () {                      // the wallpaper appears layer by layer, under the falling letters
-          await sleep(650);
-          await tween(900, function (e) { wimg.style.opacity = e.toFixed(3); wimg.style.transform = "scale(" + lerp(1.07, 1, e).toFixed(4) + ")"; }, E.io);
-        })()),
-        bg((async function () {
+        bg((async function () {                      // the light on the floor is the last layer to come up
           await sleep(1350);
           await tween(800, function (e) { wfloor.style.opacity = e.toFixed(3); }, E.io);
         })()),
-        tween(1700, function (e) {
-          var r = lerp(8, diag * 1.08, e);
-          wall.style.clipPath = wall.style.webkitClipPath = "circle(" + r.toFixed(1) + "px at " + bx + "px " + by + "px)";
-          rim.style.opacity = (1 - e * e).toFixed(3);
-          rim.style.transform = "translate3d(" + (bx - 200) + "px," + (by - 200) + "px,0) scale(" + Math.max(r / 186, .02).toFixed(3) + ")";
+        tween(1700, function (e, uu) {
+          var k = E.io(uu);
+          WS.z = lerp(z0, 1, k); WS.r = lerp(R0, Rmax, k); WS.op = lerp(o0, 1, E.io(uu)); drawWall();
+          var rs = WS.r * WS.z;
+          rim.style.opacity = (1 - uu * uu).toFixed(3);
+          rim.style.transform = "translate3d(" + (bx - 200) + "px," + (by - 200) + "px,0) scale(" + Math.max(rs * .8 / 186, .02).toFixed(3) + ")";
           vig.style.opacity = e.toFixed(3); scrim.style.opacity = e.toFixed(3);
         }, E.out),
         tween(720, function (e) { flash.style.opacity = (1 - e).toFixed(3); }, E.io)
       ]);
-      wall.style.clipPath = wall.style.webkitClipPath = "none";
+      WS.z = 1; WS.r = Rmax * 1.2; WS.op = 1; drawWall();
+      wall.style.webkitMaskImage = wall.style.maskImage = "none";
       rim.style.opacity = 0;
     }
 
@@ -597,7 +610,6 @@
       }, E.lin).then(function () { ring.remove(); ring2.remove(); sparks.forEach(function (s) { s.remove(); }); });
     }
     async function bounceTitle() {
-      LIFT = clamp(fs * .5, 24, 56);
       var n = letters.length, sw = letters[n - 1].cx - letters[0].cx + fs * .6;
       floatShadow = sv("ellipse", { cx: W / 2, cy: floorY + fs * .08, rx: sw * .42, ry: Math.max(fs * .07, 4), fill: "#000", opacity: 0 }, fxSvg);
       floatShadow.setAttribute("style", "filter:blur(6px)");
