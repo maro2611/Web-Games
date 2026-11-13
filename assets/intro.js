@@ -89,6 +89,11 @@
       ".mgi-mglow{position:absolute;left:50%;top:48%;width:2em;height:2em;margin:-1em 0 0 -1em;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(120,205,255,.5),rgba(120,205,255,0) 66%);animation:mgi-pulse 2.4s ease-in-out infinite}",
       "@keyframes mgi-pulse{0%,100%{opacity:.55;transform:scale(.88)}50%{opacity:1;transform:scale(1.12)}}",
       ".mgi-rip{position:absolute;left:0;top:0;width:200px;height:200px;border-radius:50%;border:3px solid rgba(160,235,255,.9);opacity:0;pointer-events:none;z-index:7;will-change:transform,opacity}",
+      ".mgi-hint{position:absolute;left:50%;bottom:max(40px,calc(env(safe-area-inset-bottom) + 28px));max-width:92vw;z-index:9;direction:rtl;text-align:center;white-space:nowrap;pointer-events:none;opacity:0;transform:translate3d(-50%,14px,0);" +
+        "transition:opacity .5s ease,transform .5s ease;font-family:'Tajawal','Changa','Noto Sans Arabic',system-ui,sans-serif;font-weight:700;font-size:clamp(14px,4vw,18px);line-height:1.4;color:#fff;padding:.5em 1.3em .55em;border-radius:999px;" +
+        "background:rgba(10,33,89,.78);border:1.5px solid rgba(0,168,255,.65);box-shadow:0 0 20px rgba(0,168,255,.45),inset 0 0 10px rgba(0,168,255,.25)}",
+      ".mgi-hint.on{opacity:1;transform:translate3d(-50%,0,0);animation:mgi-hint 1.6s ease-in-out .5s infinite}",
+      "@keyframes mgi-hint{0%,100%{box-shadow:0 0 14px rgba(0,168,255,.35),inset 0 0 8px rgba(0,168,255,.2)}50%{box-shadow:0 0 30px rgba(0,168,255,.85),inset 0 0 12px rgba(0,168,255,.4)}}",
       ".mgi-load{position:absolute;left:50%;bottom:max(34px,calc(env(safe-area-inset-bottom) + 22px));width:78px;margin-left:-39px;z-index:9;pointer-events:none;opacity:0;text-align:center}",
       ".mgi-load svg{display:block;width:78px;height:78px;filter:drop-shadow(0 0 8px rgba(34,211,238,.55))}",
       ".mgi-spin{transform-origin:39px 39px;animation:mgi-rot 2.6s linear infinite}",
@@ -400,8 +405,20 @@
 
     /* ================= PHASE 1: preloader, M on the hand, click ================= */
     var clicked = false;
-    function onM(ev) { if (ev && ev.preventDefault) ev.preventDefault(); clicked = true; }
+    function onM(ev) {
+      if (ev && ev.preventDefault) ev.preventDefault();
+      if (clicked) return;
+      clicked = true;
+      clearTimeout(guard);
+      guard = setTimeout(function () { ctl.kill(false); }, 20000);   // never trap the visitor once it is running
+    }
     mw.addEventListener("pointerdown", onM);
+    mw.tabIndex = 0;
+    mw.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") onM(ev); });
+    var hint = el("div", "mgi-hint", stage);
+    var isApp = false;
+    try { isApp = !!((window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone); } catch (e) {}
+    hint.textContent = isApp ? "دوس على الحرف M عشان التطبيق يفتح" : "دوس على الحرف M عشان الموقع يفتح";
 
     async function phaseLoad() {
       var t0 = performance.now(), ready = false, p = 0, img = new Image();
@@ -440,7 +457,17 @@
       fit(); measure(); makePile(); sizeArm(); layoutPlate(); placeScrim();   // fonts may have arrived: re-fit once, before anything is visible
       M.bob = 0; applyM();
       bg(tween(380, function (e) { load.style.opacity = (1 - e).toFixed(3); }, E.io));
-      if (!clicked) await sleep(120);
+      // wait for the visitor: the plate keeps floating, and after 2 seconds a message tells them what to do
+      var tw0 = performance.now(), hinted = false;
+      while (!clicked) {
+        await frame();
+        var nw = performance.now();
+        M.bob = Math.sin(nw / 430) * 4 * u; applyM();
+        setHand(Mx, restTipY + M.bob, pointUp(0));
+        if (!hinted && nw - tw0 > 2000) { hinted = true; hint.classList.add("on"); }
+      }
+      hint.classList.remove("on");
+      M.bob = 0; applyM();
     }
 
     async function phasePress() {
@@ -691,7 +718,7 @@
     root.addEventListener("wheel", stopScroll, { passive: false });
     root.addEventListener("touchmove", stopScroll, { passive: false });
     skipBtn.addEventListener("click", function () { ctl.kill(false); });
-    guard = setTimeout(function () { ctl.kill(false); }, 20000);   // never trap the visitor
+    // (the 20s safety timer starts when the visitor presses the M, see onM; the skip button is always there)
 
     var completed = false;
     play().then(function () { completed = true; }, function (e) { if (e !== ABORT && window.console) console.error("[intro]", e); })
