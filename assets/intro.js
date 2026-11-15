@@ -75,7 +75,7 @@
       ".mgi-name{position:absolute;left:0;right:0;top:0;z-index:4;text-align:center;white-space:nowrap;font-family:" + f + ";font-weight:800;line-height:1.15;will-change:transform;pointer-events:none}",
       ".mgi-line{position:relative;display:block}",
       ".mgi-l{display:inline-block;opacity:0;color:#FFFFFF;will-change:transform;text-shadow:0 0 16px rgba(255,255,255,.3),0 4px 0 rgba(0,0,0,.5)}",
-      ".mgi-l.b{color:#00A8FF;text-shadow:0 0 22px rgba(0,168,255,.75),0 4px 0 rgba(0,25,60,.6)}",
+      ".mgi-l.b{color:#FF2D3D;text-shadow:0 0 22px rgba(255,45,61,.75),0 4px 0 rgba(60,0,8,.6)}",
       ".mgi-sp{display:inline-block;width:.28em}",
       ".mgi-probe{display:inline-block;width:0;height:0}",
       ".mgi-pill{position:absolute;left:0;top:0;z-index:6;direction:rtl;white-space:nowrap;pointer-events:none;will-change:transform;font-family:'Tajawal','Changa','Noto Sans Arabic',system-ui,sans-serif;font-weight:800;line-height:1.35;color:#fff;" +
