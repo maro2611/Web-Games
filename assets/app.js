@@ -827,7 +827,17 @@
       if (!cached && canPaintEarly(st[1])) paint(st[0], st[1]);
       return remoteGames().then(function (games) {
         /* games that only live in data/games.json stay visible until they are imported to Firestore from the dashboard */
-        var have = {}; games.forEach(function (x) { have[x.slug] = 1; });
+        var have = {}, fileBy = {};
+        st[1].forEach(function (x) { fileBy[x.slug] = x; });
+        /* a download link kept in data/games.json (files hosted on this site) beats a dead release link saved in Firestore */
+        games.forEach(function (x) {
+          have[x.slug] = 1;
+          var f = fileBy[x.slug];
+          if (!f) return;
+          (x.versions || []).forEach(function (v) {
+            (f.versions || []).forEach(function (fv) { if (fv.version === v.version && fv.url) { v.url = fv.url; if (fv.size) v.size = fv.size; } });
+          });
+        });
         return [st[0], games.concat(st[1].filter(function (x) { return !have[x.slug] && !x.hidden; }))];
       }, function () { return st; });
     }).then(function (res) {
