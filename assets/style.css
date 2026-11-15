@@ -231,3 +231,8 @@ body::before { pointer-events: none; }
 .comment { background: rgba(255,255,255,.04); border-radius: 8px; padding: 8px 12px; }
 .comment p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .comment-form { display: grid; gap: 8px; }
+
+/* dashboard requirements box */
+.reqs ul { margin: 0; padding-inline-start: 20px; display: grid; gap: 4px; }
+.reqs .req-h { margin: 8px 0 2px; font-weight: 700; color: var(--accent); }
+.reqs .req-h.opt { color: var(--muted); }

@@ -323,6 +323,7 @@ window.MG_ADMIN = function (MG) {
       var msg = h("p", { class: "note", hidden: "hidden", role: "status" });
       var list = h("div", { class: "stack" });
       var formBox = h("div");
+      var importBox = h("div", { class: "stack" });   /* must exist before it is appended below */
 
       function say(t) { msg.hidden = false; msg.textContent = t; }
 
@@ -331,7 +332,8 @@ window.MG_ADMIN = function (MG) {
         h("button", { class: "btn secondary", type: "button", text: "تسجيل الخروج", onclick: signOut })
       ]));
       box.appendChild(h("div", { class: "actions" }, [
-        h("button", { class: "btn", type: "button", text: "إضافة لعبة", onclick: function () { openForm(null, false); } })
+        h("button", { class: "btn", type: "button", text: "إضافة لعبة", onclick: function () { openForm(null); } }),
+        h("button", { class: "btn", type: "button", text: "إضافة إصدار", onclick: function () { openVersionForm(""); } })
       ]));
       box.appendChild(ghPanel());
       box.appendChild(msg);
@@ -432,7 +434,6 @@ window.MG_ADMIN = function (MG) {
       box.appendChild(cList);
       loadComplaints();
 
-      var importBox = h("div", { class: "stack" });
       function showImport() {
         importBox.textContent = "";
         fetch("data/games.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (file) {
@@ -473,8 +474,8 @@ window.MG_ADMIN = function (MG) {
             } }));
             actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "إلغاء", onclick: draw }));
           });
-          actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "تعديل", onclick: function () { openForm(g, false); } }));
-          actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "إصدار جديد", onclick: function () { openForm(g, true); } }));
+          actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "تعديل", onclick: function () { openForm(g); } }));
+          actions.appendChild(h("button", { class: "btn secondary", type: "button", text: "إصدار جديد", onclick: function () { openVersionForm(g.slug); } }));
           actions.appendChild(h("button", { class: "btn secondary", type: "button", text: g.hidden ? "إظهار" : "إخفاء", onclick: function () {
             db.collection("games").doc(g.slug).update({ hidden: !g.hidden }).then(function () { say(g.hidden ? "اتظهرت." : "اتخفت."); refresh(); }, function () { say("ماتحدّثتش."); });
           } }));
@@ -487,14 +488,109 @@ window.MG_ADMIN = function (MG) {
         });
       }
 
-      function openForm(g, newVersion) {
+      /* ---- shared: requirements box, version fields + file upload (used by "add game" and "add version") ---- */
+      function reqBox(title, required, optional) {
+        return h("div", { class: "panel reqs" }, [
+          h("h3", { text: title }),
+          h("p", { class: "req-h", text: "المطلوب" }),
+          h("ul", null, required.map(function (t) { return h("li", { text: t }); })),
+          h("p", { class: "req-h opt", text: "اختياري" }),
+          h("ul", null, optional.map(function (t) { return h("li", { text: t }); }))
+        ]);
+      }
+      function uploadVersion(x, ctx, fileEl, statusEl, btn, redraw) {
+        var f = fileEl.files[0];
+        var s = ctx.slug();
+        function note(t) { statusEl.hidden = false; statusEl.textContent = t; statusEl.classList.toggle("mg-busy", /^(بجهّز|بيترفع)/.test(t)); }
+        if (!ghToken()) return note("اربط GitHub الأول من الجزء اللي فوق (رفع ملفات الألعاب على GitHub).");
+        if (!s) return note("اكتب الرابط (slug) بتاع اللعبة الأول.");
+        if (!(x.version || "").trim()) return note("اكتب رقم الإصدار الأول.");
+        if (!f) return note("اختار الملف الأول.");
+        btn.disabled = true;
+        note("بجهّز الإصدار على GitHub...");
+        ghRelease(relTag(s, x.version.trim()), (ctx.title() || s) + " " + x.version.trim(), x.changelog)
+          .then(function (rel) { return ghUpload(rel, f, function (p) { note("بيترفع... " + p + "%"); }); })
+          .then(function (asset) {
+            x.url = asset.browser_download_url;
+            x.size = fmtSize(f.size);
+            say("الملف اترفع واتحط رابطه والحجم. كمّل واضغط الحفظ.");
+            redraw();
+          })
+          .catch(function (e) { btn.disabled = false; note(e.message); });
+      }
+      function versionPanel(x, ctx, redraw, onRemove) {
+        function bind(key, ph, type) {
+          var inp = h("input", { type: type || "text", value: x[key] || "", placeholder: ph, dir: "ltr" });
+          inp.addEventListener("input", function () { x[key] = inp.value; });
+          return inp;
+        }
+        var ch = h("textarea", { rows: "2", placeholder: "إيه اللي اتغير" }); ch.value = x.changelog || "";
+        ch.addEventListener("input", function () { x.changelog = ch.value; });
+        var fileIn = h("input", { type: "file" });
+        var upStatus = h("p", { class: "note", hidden: "hidden", role: "status" });
+        var upBtn = h("button", { class: "btn", type: "button", text: "ارفع الملف على GitHub" });
+        upBtn.addEventListener("click", function () { uploadVersion(x, ctx, fileIn, upStatus, upBtn, redraw); });
+        return h("div", { class: "panel" }, [
+          h("div", { class: "tools" }, [bind("version", "رقم الإصدار 1.0"), bind("date", "", "date"), bind("size", "الحجم 45 MB")]),
+          bind("url", "رابط التحميل المباشر (GitHub Releases)", "url"),
+          h("div", { class: "field" }, [h("label", { text: "أو ارفع ملف اللعبة من هنا (الرابط والحجم بيتملوا لوحدهم)" }), fileIn, upBtn, upStatus]),
+          h("a", { class: "muted", href: "https://github.com/" + GH_REPO + "/releases/new", target: "_blank", rel: "noopener", text: "بديل: ارفع الملف يدويًا على GitHub Releases والصق الرابط فوق." }),
+          ch,
+          onRemove ? h("button", { class: "btn secondary", type: "button", text: "حذف الإصدار ده", onclick: onRemove }) : null
+        ]);
+      }
+
+      /* ---- add version: pick an existing game, then fill the version ---- */
+      function openVersionForm(presetSlug) {
+        if (!games.length) { formBox.textContent = ""; return say("مفيش ألعاب لسه. ضيف لعبة الأول."); }
+        var x = { version: "", date: today(), size: "", changelog: "", url: "" };
+        var sel = h("select", { id: "v-game" }, [h("option", { value: "", text: "اختار اللعبة" })].concat(games.map(function (g) {
+          var lv = (g.versions && g.versions[0] && g.versions[0].version) || "-";
+          return h("option", { value: g.slug, text: g.title + " (آخر إصدار " + lv + ")" });
+        })));
+        sel.value = presetSlug || "";
+        var body = h("div", { class: "stack" });
+        function cur() { return games.filter(function (g) { return g.slug === sel.value; })[0]; }
+        function draw() {
+          body.textContent = "";
+          var g = cur();
+          if (!g) { body.appendChild(h("p", { class: "muted", text: "اختار اللعبة الأول عشان تظهرلك خانات الإصدار." })); return; }
+          body.appendChild(versionPanel(x, { slug: function () { return g.slug; }, title: function () { return g.title; } }, draw, null));
+          body.appendChild(h("div", { class: "actions" }, [
+            h("button", { class: "btn", type: "button", text: "نشر الإصدار", onclick: save }),
+            h("button", { class: "btn secondary", type: "button", text: "إلغاء", onclick: function () { formBox.textContent = ""; } })
+          ]));
+        }
+        function save() {
+          var g = cur();
+          if (!g) return say("اختار اللعبة الأول.");
+          var v = (x.version || "").trim();
+          if (!v) return say("اكتب رقم الإصدار.");
+          if ((g.versions || []).some(function (o) { return String(o.version).toLowerCase() === v.toLowerCase(); })) return say("الإصدار " + v + " موجود قبل كده في " + g.title + ".");
+          if (!(x.url || "").trim()) return say("ارفع ملف الإصدار أو الصق رابط التحميل.");
+          var nv = { version: v, date: x.date || today(), size: (x.size || "").trim(), changelog: (x.changelog || "").trim(), url: x.url.trim() };
+          db.collection("games").doc(g.slug).update({ versions: [nv].concat(g.versions || []) }).then(function () {
+            say("اتضاف الإصدار " + v + " لـ " + g.title + ".");
+            formBox.textContent = ""; refresh();
+          }, function () { say("ماتحفظش. اتأكد من قواعد Firestore وإنك داخل بحساب صاحب الموقع."); });
+        }
+        sel.addEventListener("change", function () { x = { version: "", date: today(), size: "", changelog: "", url: "" }; draw(); });
+        draw();
+        formBox.textContent = "";
+        formBox.appendChild(reqBox("إضافة إصدار جديد",
+          ["اختيار اللعبة من القايمة (الألعاب الموجودة بس).", "رقم الإصدار، ولازم يكون مختلف عن الإصدارات اللي قبله.", "ملف اللعبة (APK) ترفعه من هنا، أو رابط تحميل مباشر تلصقه."],
+          ["التاريخ (النهاردة تلقائي).", "الحجم (بيتملا لوحده لما ترفع الملف).", "ملاحظات الإصدار: إيه اللي اتغير.", "لو هترفع الملف من هنا لازم تربط توكن GitHub من الجزء اللي فوق."]));
+        formBox.appendChild(h("div", { class: "panel" }, [h("h2", { text: "الإصدار الجديد" }), field("اللعبة", sel, "v-game"), body]));
+        formBox.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function openForm(g) {
         var isEdit = !!g;
         var st = {
           wallpaper: (g && g.wallpaper) || "",
           shots: ((g && g.screenshots) || []).slice(),
           versions: ((g && g.versions) || [{ version: "1.0", date: today(), size: "", changelog: "", url: "" }]).map(function (x) { return Object.assign({}, x); })
         };
-        if (newVersion) st.versions.unshift({ version: "", date: today(), size: "", changelog: "", url: "" });
 
         var title = h("input", { type: "text", value: g ? g.title : "" });
         var slug = h("input", { type: "text", value: g ? g.slug : "", dir: "ltr", placeholder: "my-game" });
@@ -542,48 +638,11 @@ window.MG_ADMIN = function (MG) {
         drawShots();
 
         var versBox = h("div", { class: "stack" });
-        function doUpload(x, fileEl, statusEl, btn) {
-          var f = fileEl.files[0];
-          var s = slug.value.trim().toLowerCase();
-          function note(t) { statusEl.hidden = false; statusEl.textContent = t; statusEl.classList.toggle("mg-busy", /^(بجهّز|بيترفع)/.test(t)); }
-          if (!ghToken()) return note("اربط GitHub الأول من الجزء اللي فوق (رفع ملفات الألعاب على GitHub).");
-          if (!s) return note("اكتب الرابط (slug) بتاع اللعبة الأول.");
-          if (!(x.version || "").trim()) return note("اكتب رقم الإصدار الأول.");
-          if (!f) return note("اختار الملف الأول.");
-          btn.disabled = true;
-          note("بجهّز الإصدار على GitHub...");
-          ghRelease(relTag(s, x.version.trim()), (title.value.trim() || s) + " " + x.version.trim(), x.changelog)
-            .then(function (rel) { return ghUpload(rel, f, function (p) { note("بيترفع... " + p + "%"); }); })
-            .then(function (asset) {
-              x.url = asset.browser_download_url;
-              x.size = fmtSize(f.size);
-              say("الملف اترفع واتحط رابطه والحجم. اضغط نشر أو حفظ كمسودة عشان تحفظ التغييرات.");
-              drawVers();
-            })
-            .catch(function (e) { btn.disabled = false; note(e.message); });
-        }
+        var ctx = { slug: function () { return slug.value.trim().toLowerCase(); }, title: function () { return title.value.trim(); } };
         function drawVers() {
           versBox.textContent = "";
           st.versions.forEach(function (x, i) {
-            function bind(key, ph, type) {
-              var inp = h("input", { type: type || "text", value: x[key] || "", placeholder: ph, dir: "ltr" });
-              inp.addEventListener("input", function () { x[key] = inp.value; });
-              return inp;
-            }
-            var ch = h("textarea", { rows: "2", placeholder: "إيه اللي اتغير" }); ch.value = x.changelog || "";
-            ch.addEventListener("input", function () { x.changelog = ch.value; });
-            var fileIn = h("input", { type: "file" });
-            var upStatus = h("p", { class: "note", hidden: "hidden", role: "status" });
-            var upBtn = h("button", { class: "btn", type: "button", text: "ارفع الملف على GitHub" });
-            upBtn.addEventListener("click", function () { doUpload(x, fileIn, upStatus, upBtn); });
-            versBox.appendChild(h("div", { class: "panel" }, [
-              h("div", { class: "tools" }, [bind("version", "رقم الإصدار 1.0"), bind("date", "", "date"), bind("size", "الحجم 45 MB")]),
-              bind("url", "رابط التحميل المباشر (GitHub Releases)", "url"),
-              h("div", { class: "field" }, [h("label", { text: "أو ارفع ملف اللعبة من هنا (الرابط والحجم بيتملوا لوحدهم)" }), fileIn, upBtn, upStatus]),
-              h("a", { class: "muted", href: "https://github.com/" + GH_REPO + "/releases/new", target: "_blank", rel: "noopener", text: "بديل: ارفع الملف يدويًا على GitHub Releases والصق الرابط فوق." }),
-              ch,
-              st.versions.length > 1 ? h("button", { class: "btn secondary", type: "button", text: "حذف الإصدار ده", onclick: function () { st.versions.splice(i, 1); drawVers(); } }) : null
-            ]));
+            versBox.appendChild(versionPanel(x, ctx, drawVers, st.versions.length > 1 ? function () { st.versions.splice(i, 1); drawVers(); } : null));
           });
         }
         drawVers();
@@ -621,6 +680,9 @@ window.MG_ADMIN = function (MG) {
         }
 
         formBox.textContent = "";
+        if (!isEdit) formBox.appendChild(reqBox("إضافة لعبة جديدة",
+          ["اسم اللعبة ووصف قصير.", "المنصة (Android أو Windows).", "الإصدار الأول: رقمه + ملف اللعبة (APK) ترفعه من هنا أو رابط تحميل مباشر."],
+          ["الرابط (slug): لو سبته فاضي بيتعمل لوحده.", "التصنيف، وأقل إصدار أندرويد والرام.", "صورة اللعبة (الوول بيبر) ولقطات لحد 4.", "ملاحظات الإصدار.", "لو هترفع الملف من هنا لازم تربط توكن GitHub من الجزء اللي فوق.", "لو عايز تضيف إصدار لعبة موجودة استخدم زرار «إضافة إصدار»."]));
         formBox.appendChild(h("div", { class: "panel" }, [
           h("h2", { text: isEdit ? "تعديل: " + g.title : "لعبة جديدة" }),
           field("اسم اللعبة", title, "f-title"),
@@ -632,11 +694,8 @@ window.MG_ADMIN = function (MG) {
           field("الرام المناسب", ram, "f-ram"),
           h("div", { class: "field" }, [h("label", { text: "صورة اللعبة (الوول بيبر)" }), wallIn, wallPrev]),
           h("div", { class: "field" }, [h("label", { text: "لقطات من اللعبة (لحد 4)" }), shotsIn, shotsPrev]),
-          h("h3", { text: "الإصدارات (الأحدث الأول)" }),
+          h("h3", { text: isEdit ? "الإصدارات (الأحدث الأول)" : "الإصدار الأول" }),
           versBox,
-          h("button", { class: "btn secondary", type: "button", text: "إضافة إصدار", onclick: function () {
-            st.versions.unshift({ version: "", date: today(), size: "", changelog: "", url: "" }); drawVers();
-          } }),
           h("div", { class: "actions" }, [
             h("button", { class: "btn", type: "button", text: "نشر", onclick: function () { save(false); } }),
             h("button", { class: "btn secondary", type: "button", text: "حفظ كمسودة", onclick: function () { save(true); } }),
