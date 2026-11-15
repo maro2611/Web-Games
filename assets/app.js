@@ -207,22 +207,46 @@
     var state = { q: "", platform: "الكل", cat: "الكل" };
     var list = visible().sort(byNewest);
 
+    /* entrance: each card waits (hidden) until it scrolls into view, then pops in; cards that show up together pop one after the other */
+    var pending = [];
+    function reveal() {
+      var cards = pending; pending = [];
+      if (!cards.length) return;
+      if (!("IntersectionObserver" in window)) { cards.forEach(function (c) { c.classList.add("go"); }); return; }
+      var io = new IntersectionObserver(function (es) {
+        var vis = es.filter(function (e) { return e.isIntersecting; });
+        var step = Math.min(110, 600 / Math.max(vis.length - 1, 1));
+        vis.forEach(function (e, i) {
+          io.unobserve(e.target);
+          e.target.style.setProperty("--d", Math.round(260 + i * step) + "ms");
+          e.target.classList.add("go");
+        });
+      }, { threshold: 0.12 });
+      cards.forEach(function (c) { io.observe(c); });
+    }
+    function enter(c) { c.classList.add("enter"); pending.push(c); return c; }
+
     main.appendChild(h("h1", { text: "ألعاب الأندرويد" }));
     if (list[0]) {
       main.appendChild(h("section", { class: "stack" }, [
         h("h2", { text: "أحدث لعبة" }),
-        h("div", { class: "grid" }, [gameCard(list[0])])
+        h("div", { class: "grid" }, [enter(gameCard(list[0]))])
       ]));
     }
 
     var search = h("input", { type: "search", placeholder: "ابحث باسم اللعبة", "aria-label": "بحث" });
     var chipsBox = h("div", { class: "chips", role: "group", "aria-label": "المنصة" });
     var catBox = h("div", { class: "chips", role: "group", "aria-label": "التصنيف" });
-    main.appendChild(h("div", { class: "tools" }, [search, chipsBox]));
+    var toolsBox = h("div", { class: "tools" }, [search, chipsBox]);
+    main.appendChild(toolsBox);
     main.appendChild(catBox);
     var grid = h("div", { class: "grid" });
-    main.appendChild(h("h2", { text: "كل الألعاب" }));
+    var allH = h("h2", { text: "كل الألعاب" });
+    main.appendChild(allH);
     main.appendChild(grid);
+    /* the controls rise first; the cards animate on the first draw only (searching/filtering stays instant) */
+    var intro = true;
+    [toolsBox, catBox, allH].forEach(function (n, i) { n.classList.add("mg-rise"); n.style.setProperty("--d", (i * 90) + "ms"); });
 
     function chips() {
       var set = ["الكل"];
@@ -257,7 +281,11 @@
       });
       grid.textContent = "";
       if (!rows.length) grid.appendChild(h("p", { class: "empty", text: "مفيش ألعاب مطابقة." }));
-      rows.forEach(function (g) { grid.appendChild(gameCard(g)); });
+      rows.forEach(function (g) {
+        var c = gameCard(g);
+        grid.appendChild(intro ? enter(c) : c);
+      });
+      if (intro) { intro = false; reveal(); }
     }
     search.addEventListener("input", function () { state.q = search.value; draw(); });
     chips(); cats(); draw();
