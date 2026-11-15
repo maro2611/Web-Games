@@ -442,8 +442,7 @@
       h("p", { class: "muted" }, [v.date ? fmtDate(v.date) : "", v.size ? " · " : "", v.size ? ltr(v.size) : null]),
       v.changelog ? h("p", { text: v.changelog }) : null,
       statEl("p", g.slug, "mg-stat-big"),
-      ratingWidget(g),
-      h("button", { class: "btn block", type: "button", text: "تحميل", onclick: function () { openDownload(g, v); } })
+      ratingWidget(g)
     ]);
     var sb = supportButton();
     if (sb) { sb.classList.add("block"); card.appendChild(sb); }
