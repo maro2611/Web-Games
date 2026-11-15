@@ -1,4 +1,4 @@
-/* Marcelino Games service worker: makes the site installable, keeps the pages working
+/* Kaboom service worker: makes the site installable, keeps the pages working
    offline, and shows push notifications sent through Firebase Cloud Messaging. */
 try {
   importScripts(

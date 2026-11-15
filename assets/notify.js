@@ -119,7 +119,7 @@
       var h = MG.h;
       var bar = h("div", { id: "install-bar", class: "install-bar", role: "region", "aria-label": "تثبيت التطبيق" }, [
         h("img", { src: "images/icon-192.png", alt: "", width: "40", height: "40", style: "border-radius:10px" }),
-        h("span", { text: "ثبّت Marcelino Games كتطبيق على موبايلك" }),
+        h("span", { text: "ثبّت Kaboom كتطبيق على موبايلك" }),
         h("button", { class: "btn", type: "button", text: "تثبيت", onclick: function () { install().then(function () { bar.remove(); }); } }),
         h("button", { class: "install-x", type: "button", "aria-label": "إغلاق", html: "&times;", onclick: function () { lsSet("mg_install_dismissed", "1"); bar.remove(); } })
       ]);

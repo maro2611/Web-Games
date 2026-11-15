@@ -109,7 +109,7 @@ window.MG_ADMIN = function (MG) {
   function sharePage(s, t, d, img) {
     var url = SITE + "game.html?g=" + encodeURIComponent(s), desc = d.replace(/\s+/g, " ").slice(0, 160);
     return '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
-      '<title>' + esc(t) + ' | Marcelino Games</title><meta name="description" content="' + esc(desc) + '">' +
+      '<title>' + esc(t) + ' | Kaboom</title><meta name="description" content="' + esc(desc) + '">' +
       '<meta property="og:type" content="website"><meta property="og:title" content="' + esc(t) + '"><meta property="og:description" content="' + esc(desc) + '">' +
       '<meta property="og:image" content="' + esc(img) + '"><meta property="og:url" content="' + esc(SITE + "g/" + s + ".html") + '"><meta name="twitter:card" content="summary_large_image">' +
       '<link rel="canonical" href="' + esc(url) + '"><meta http-equiv="refresh" content="0;url=' + esc(url) + '"></head>' +

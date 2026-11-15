@@ -1,4 +1,4 @@
-/* Marcelino Games - plain JS, no build step. Data lives in /data/*.json */
+/* Kaboom - plain JS, no build step. Data lives in /data/*.json */
 (function () {
   "use strict";
 
@@ -36,7 +36,7 @@
   function renderChrome(page) {
     var header = h("header", { class: "site-header" }, [
       h("div", { class: "wrap" }, [
-        h("a", { class: "logo", href: "index.html", html: 'Marcelino <span>Games</span>' }),
+        h("a", { class: "logo", href: "index.html", html: 'Ka<span>boom</span>' }),
         h("nav", { class: "nav", "aria-label": "التنقل" }, [
           h("a", { href: "index.html", text: "الرئيسية", "aria-current": page === "home" ? "page" : false }),
           h("a", { href: "games.html", text: "الألعاب", "aria-current": page === "games" ? "page" : false }),
@@ -154,9 +154,9 @@
     var main = $("main .wrap") || $("main");
     var latest = visible().sort(byNewest)[0];
 
-    main.appendChild(h("img", { class: "hero-img", src: "images/banner.jpg", alt: "Marcelino Games" }));
+    main.appendChild(h("img", { class: "hero-img", src: "images/banner.jpg", alt: "Kaboom" }));
     main.appendChild(h("section", { class: "hero" }, [
-      h("h1", { html: 'Marcelino <span>Games</span>' }),
+      h("h1", { html: 'Ka<span>boom</span>' }),
       h("p", { text: SITE.tagline }),
       h("p", { text: "الألعاب دي من تصميم وتطوير مارسيلينو فهمي، مطوّر ألعاب مستقل. كل لعبة هنا بتتحمل مباشرة وببلاش، وبتتحدث هنا الأول." }),
       h("div", { class: "actions" }, [h("a", { class: "btn", href: "games.html", text: "ألعاب الأندرويد" })])
@@ -325,7 +325,7 @@
       main.appendChild(h("a", { class: "btn", href: "games.html", text: "رجوع للألعاب" }));
       return;
     }
-    document.title = g.title + " | Marcelino Games";
+    document.title = g.title + " | Kaboom";
     var v = latestVer(g) || {};
 
     var banner = coverEl(g);

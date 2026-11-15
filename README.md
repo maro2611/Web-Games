@@ -1,4 +1,4 @@
-# Marcelino Games
+# Kaboom
 
 موقع ثابت (من غير سيرفر) لعرض وتحميل الألعاب، بيشتغل على GitHub Pages.
 
@@ -32,7 +32,7 @@ Settings ثم Pages ثم Source: **GitHub Actions**.
 بعد ربط Firebase الموقع بيقرأ الألعاب من Firestore، وملف `data/games.json` بيفضل احتياطي لو Firebase مش متاح.
 
 ## التطبيق والإشعارات
-- الموقع قابل للتثبيت كتطبيق (PWA) باسم Marcelino Games وأيقونته الدراع اللي عليه M. ملفاته: `manifest.webmanifest` و`firebase-messaging-sw.js` و`images/icon-*.png`.
+- الموقع قابل للتثبيت كتطبيق (PWA) باسم Kaboom وأيقونته الدراع اللي عليه M. ملفاته: `manifest.webmanifest` و`firebase-messaging-sw.js` و`images/icon-*.png`.
 - أول ما حد يفتح الموقع بتظهر له رسالة بتسأله يفعّل الإشعارات: **لكل الألعاب** أو **للألعاب اللي نزّلها بس**. اختياره بيتسجل في Firestore (collection `subscribers`)، ويقدر يغيّره من صفحة الإعدادات.
 - تفعيل الإشعارات (مرة واحدة):
   1. Firebase console ثم Project settings ثم Cloud Messaging ثم Web Push certificates ثم Generate key pair، وانسخ المفتاح في `window.VAPID_KEY` داخل `data/firebase-config.js`.

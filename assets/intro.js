@@ -1,8 +1,8 @@
-/* Marcelino Games opening animation (self-contained: this file injects its own CSS).
+/* Kaboom opening animation (self-contained: this file injects its own CSS).
    Sequence (one async/await timeline, every move is a time-based tween, so a slow frame never stalls it):
    1 dark preloader + the "M" resting on a peeking alien hand, loader ring, tactile click
    2 radial light burst reveals the wallpaper, the alien arm stretches in from the left edge
-   3 "Marcelino Games" drops in as a tumbled pile
+   3 "Kaboom" drops in as a tumbled pile
    4 the arm nudges every letter into a straight line
    5 floor slam, the title bounces up, the arm carries in the Arabic badge
    6 the arm leaves, a 1.5s pause, the overlay slides up and the page is revealed.
@@ -196,11 +196,11 @@
 
     var letters = [];
     var line = el("div", "mgi-line", nameEl);
-    var txt = "Marcelino Games";
+    var txt = "Kaboom";
     for (var ci = 0; ci < txt.length; ci++) {
       var ch = txt.charAt(ci);
       if (ch === " ") { el("span", "mgi-sp", line); continue; }
-      var sp = el("span", "mgi-l" + (ci > 9 ? " b" : ""), line);
+      var sp = el("span", "mgi-l" + (ci > 1 ? " b" : ""), line);
       sp.textContent = ch;
       letters.push({ el: sp });
     }
