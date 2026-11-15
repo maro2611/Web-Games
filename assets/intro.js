@@ -6,7 +6,7 @@
    4 the arm nudges every letter into a straight line
    5 floor slam, the title bounces up, the arm carries in the Arabic badge
    6 the arm leaves, a 1.5s pause, the overlay slides up and the page is revealed.
-   window.MG_INTRO.replay() plays it again; the "Replay Intro" button does the same. */
+   window.MG_INTRO.replay() plays it again. There is no on-page button; the intro plays on the first visit and on a page refresh. */
 (function () {
   "use strict";
   var host = document.getElementById("splash");
@@ -796,13 +796,6 @@
     ensureCSS();
     cur = run(root);
   }
-
-  var rb = document.createElement("button");
-  rb.type = "button"; rb.className = "mgi-replay"; rb.textContent = "↻ Replay Intro";
-  rb.setAttribute("aria-label", "Replay Intro");
-  rb.addEventListener("click", function () { start(null); });
-  ensureCSS();
-  document.body.appendChild(rb);
 
   window.MG_INTRO = { replay: function () { start(null); }, skip: function () { if (cur) cur.kill(false); } };
 
