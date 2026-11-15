@@ -835,7 +835,7 @@
           var f = fileBy[x.slug];
           if (!f) return;
           (x.versions || []).forEach(function (v) {
-            (f.versions || []).forEach(function (fv) { if (fv.version === v.version && fv.url) { v.url = fv.url; if (fv.size) v.size = fv.size; } });
+            (f.versions || []).forEach(function (fv) { if (fv.version === v.version && fv.url) { v.url = fv.url; if (fv.size) v.size = fv.size; if (fv.changelog && !v.changelog) v.changelog = fv.changelog; } });
           });
         });
         return [st[0], games.concat(st[1].filter(function (x) { return !have[x.slug] && !x.hidden; }))];
