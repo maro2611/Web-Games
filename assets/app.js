@@ -139,15 +139,51 @@
       v.size ? h("li", null, [ltr(v.size)]) : null,
       statEl("li", g.slug, "mg-stat")
     ]);
-    return h("article", { class: "card" }, [
+    var url = gameUrl(g), busy = false;
+    var card = h("article", { class: "card go-card" }, [
       coverEl(g),
       h("div", { class: "body" }, [
         h("h3", { text: g.title }),
         h("p", { class: "desc", text: g.desc }),
         meta,
-        h("a", { class: "btn block", href: gameUrl(g), text: "تفاصيل وتحميل" })
+        h("a", { class: "btn block", href: url, text: "تفاصيل وتحميل" })
       ])
     ]);
+    /* pressing the card (anywhere on it): it sinks, fiery sparks fly from the finger, then the game page opens */
+    card.addEventListener("click", function (e) {
+      if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;   /* new-tab clicks keep working */
+      e.preventDefault();
+      if (busy) return; busy = true;
+      var reduce = false;
+      try { reduce = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (x) {}
+      if (reduce || !card.animate) { location.href = url; return; }
+      var r = card.getBoundingClientRect();
+      var px = e.clientX || (r.left + r.width / 2), py = e.clientY || (r.top + r.height / 2);   /* keyboard Enter has no pointer position */
+      card.classList.add("pressed");
+      sparkBurst(px, py);
+      setTimeout(function () { location.href = url; }, 420);
+    });
+    window.addEventListener("pageshow", function () { busy = false; card.classList.remove("pressed"); });   /* coming back with the back button */
+    return card;
+  }
+  function sparkBurst(x, y) {
+    var layer = h("div", { class: "sparks", "aria-hidden": "true" });
+    document.body.appendChild(layer);
+    var cols = ["#ffb040", "#ff5a1f", "#ff2d1a", "#fff1c2"], i;
+    var ring = h("i", { class: "ring" });
+    ring.style.left = x + "px"; ring.style.top = y + "px";
+    layer.appendChild(ring);
+    ring.animate([{ transform: "translate(-50%,-50%) scale(.2)", opacity: .9 }, { transform: "translate(-50%,-50%) scale(3)", opacity: 0 }], { duration: 560, easing: "cubic-bezier(.2,.7,.3,1)", fill: "forwards" });
+    for (i = 0; i < 18; i++) {
+      var s = h("i"), a = Math.random() * Math.PI * 2, d = 46 + Math.random() * 110, z = 4 + Math.random() * 6;
+      s.style.cssText = "left:" + x + "px;top:" + y + "px;width:" + z + "px;height:" + z + "px;background:" + cols[i % cols.length] + ";box-shadow:0 0 8px " + cols[i % 3];
+      layer.appendChild(s);
+      s.animate([
+        { transform: "translate(-50%,-50%) scale(1)", opacity: 1 },
+        { transform: "translate(calc(-50% + " + (Math.cos(a) * d).toFixed(1) + "px),calc(-50% + " + (Math.sin(a) * d + 18).toFixed(1) + "px)) scale(.15)", opacity: 0 }
+      ], { duration: 480 + Math.random() * 260, easing: "cubic-bezier(.15,.8,.3,1)", fill: "forwards" });
+    }
+    setTimeout(function () { if (layer.parentNode) layer.parentNode.removeChild(layer); }, 1100);
   }
 
   /* ---------- pages ---------- */

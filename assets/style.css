@@ -110,6 +110,11 @@ p { margin: 0; }
 .card:hover { transform: translateY(-3px); border-color: var(--accent); }
 /* games page entrance: cards rise one by one and each lands with a small fiery "boom" */
 .card { position: relative; }
+.card.go-card { cursor: pointer; }
+.card.pressed { transform: translateY(0) scale(.955); border-color: var(--accent); box-shadow: 0 0 36px rgba(255,90,31,.85), inset 0 0 28px rgba(255,120,40,.25); transition: transform .12s ease-out, box-shadow .12s ease-out; }
+.sparks { position: fixed; inset: 0; z-index: 2000; pointer-events: none; overflow: hidden; }
+.sparks i { position: absolute; border-radius: 50%; will-change: transform, opacity; }
+.sparks i.ring { width: 64px; height: 64px; border: 3px solid #ffb040; box-shadow: 0 0 16px rgba(255,90,31,.8); background: transparent; }
 .card.enter { animation: mg-card-in .62s cubic-bezier(.2,.9,.25,1) backwards paused; animation-delay: var(--d, 0ms); }
 .card.enter.go, .card.enter.go::after { animation-play-state: running; }
 .card.enter::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit; opacity: 0;
