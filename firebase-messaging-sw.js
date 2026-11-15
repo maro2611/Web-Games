@@ -17,7 +17,7 @@ try {
   firebase.messaging();
 } catch (e) { /* offline install: the app shell below still works */ }
 
-var CACHE = "mg-shell-v2";
+var CACHE = "mg-shell-v3";
 var SHELL = [
   "./", "index.html", "games.html", "game.html", "settings.html",
   "assets/style.css", "assets/app.js", "assets/notify.js",

@@ -115,7 +115,8 @@
   /* ---------- cards ---------- */
   function coverEl(g, big) {
     var c = h("div", { class: "cover" });
-    c.style.setProperty("--h", String(g.hue || 190));
+    var hu = g.hue || 20; if (hu >= 150 && hu <= 270) hu = 12 + (hu - 150) * 0.12;   /* saved blue/teal covers become fire tones */
+    c.style.setProperty("--h", String(hu));
     if (g.wallpaper) {
       var img = h("img", { src: g.wallpaper, alt: g.title, loading: "lazy" });
       img.addEventListener("error", function () { img.remove(); });
